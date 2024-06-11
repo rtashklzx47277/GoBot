@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+    volumes:
+      - ./backup:/docker-entrypoint-initdb.d
+    ports:
+      - 4450:3306
+    restart: always
+  go-bot:
+    image: golang:latest
+    container_name: go-bot
+    volumes:
+      - ./bot:/bot
+    working_dir: /bot
+    env_file:
+      - ./.env
+    environment:
+      - TZ=Asia/Taipei
+    depends_on:
+      - mysql
+    restart: always
+    command: go run /bot/.

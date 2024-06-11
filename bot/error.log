@@ -1,0 +1,4 @@
+2024/06/11 14:09:52 [DG0] wsapi.go:302:heartbeat() error sending heartbeat to gateway wss://gateway.discord.gg/?v=9&encoding=json, websocket: close sent
+2024/06/11 14:45:39 [DG0] wsapi.go:302:heartbeat() error sending heartbeat to gateway wss://gateway.discord.gg/?v=9&encoding=json, websocket: close sent
+2024/06/11 14:49:11 Error connecting to MySQL: dial tcp 172.21.0.3:3306: connect: connection refused
+2024/06/11 14:49:15 [DG0] wsapi.go:302:heartbeat() error sending heartbeat to gateway wss://gateway.discord.gg/?v=9&encoding=json, websocket: close sent

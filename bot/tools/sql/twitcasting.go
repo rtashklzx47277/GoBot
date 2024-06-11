@@ -1,0 +1,27 @@
+package sql
+
+import (
+	"GoBot/tools/twitcasting"
+	"database/sql"
+	"fmt"
+)
+
+func (mySQL *MySQL) FindTwitcastingUser(userId string) twitcasting.User {
+	var user twitcasting.User
+	var screenId, title, description sql.NullString
+
+	query := "SELECT * FROM TwitcastingUser WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &screenId, &title, &description, &user.Live)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	user.ScreenId = handleNullString(screenId)
+	user.Title = handleNullString(title)
+	user.Description = handleNullString(description)
+
+	user.Icon = fmt.Sprintf("/bot/media/Twitcasting/%s/Icon/%s.jpg", user.Id, user.Id)
+	user.Url = fmt.Sprintf("https://twitcasting.tv/%s", user.ScreenId)
+
+	return user
+}
