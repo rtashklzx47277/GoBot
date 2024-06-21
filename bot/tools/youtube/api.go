@@ -22,7 +22,7 @@ var (
 		7: os.Getenv("YOUTUBE_API_KEY_7"),
 		8: os.Getenv("YOUTUBE_API_KEY_8"),
 	}
-	checkList = map[string]string{
+	WatchList = map[string]string{
 		"UCJFZiqLMntJufDCHc6bQixg": "ホロライブ",
 		"UCp6993wxpyDPHUpavwDFqgg": "ときのそら",
 		"UCDqI2jOz0weumE8s7paEk6g": "ロボ子さん",
@@ -98,6 +98,7 @@ var (
 		"UC9V3Y3_uzU5e-usObb6IE1w": "星川サラ",
 		"UC9EjSJ8pvxtvPdxLOElv73w": "魔界ノりりむ",
 	}
+	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
 )
 
 func getData(path string) (*tools.Json, error) {
@@ -376,7 +377,7 @@ func GetComments(target, Id string) ([]Comment, error) {
 			if !commentTime.InRange(1) {
 				pageToken = ""
 				break
-			} else if _, ok := checkList[authorId]; ok {
+			} else if _, ok := WatchList[authorId]; ok {
 				var id string
 
 				if target == "channel" || target == "video" {

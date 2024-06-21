@@ -7,8 +7,6 @@ import (
 	"net/http"
 )
 
-var userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
-
 func GetCollab(channelId string) ([]string, error) {
 	var videoIdList []string
 
@@ -21,7 +19,7 @@ func GetCollab(channelId string) ([]string, error) {
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Encoding", "deflate")
 	req.Header.Set("Referer", fmt.Sprintf("https://holodex.net/channel/%s/collabs", channelId))
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

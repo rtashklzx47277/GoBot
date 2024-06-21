@@ -8,14 +8,18 @@ import (
 	"GoBot/tools/youtube"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 var (
-	db        *sql.MySQL
-	s         *discordgo.Session
-	collabIds = []string{}
+	db            *sql.MySQL
+	s             *discordgo.Session
+	collabIds     = []string{}
+	messageIdList = []string{}
+	channels      = map[string]chan struct{}{}
+	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 )
 
 var userDataMap = map[string]map[string]map[string]string{
@@ -307,4 +311,14 @@ func getComponent(user, videoId string) []discordgo.MessageComponent {
 			},
 		},
 	}
+}
+
+func isContain(list []string, target string) bool {
+	for _, element := range list {
+		if element == target {
+			return true
+		}
+	}
+
+	return false
 }

@@ -17,8 +17,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
-
 func main() {
 	initial()
 
@@ -68,7 +66,7 @@ func YoutubeStreamNotify(name string) {
 	for i := len(videos) - 1; i >= 0; i-- {
 		videoId := videos[i].Id
 
-		if tools.IsContain(videoIds, videoId) {
+		if isContain(videoIds, videoId) {
 			continue
 		}
 
@@ -87,6 +85,13 @@ func YoutubeStreamNotify(name string) {
 		if i >= index {
 			video.Member = true
 			status = "member"
+		}
+
+		if video.Live {
+			stopper := make(chan struct{})
+			channels[videoId] = stopper
+
+			go LiveChat(video, channel, stopper)
 		}
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
@@ -114,6 +119,10 @@ func YoutubeStreamNotify(name string) {
 					panic(err)
 				}
 
+				time.AfterFunc(5*time.Minute, func() {
+					close(channels[new.Id])
+				})
+
 				baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", thumbnail).Send(s, discordChannelId)
 				db.Update("Video", old.Id, "Private", new.Private)
 			}
@@ -124,6 +133,10 @@ func YoutubeStreamNotify(name string) {
 			baseEmbed.New(new.Title, new.Url, "直播串流開始了！", new.Thumbnail).CheckAuthor(new.Author.Id).StartTime(new.StartTime).Send(s, discordChannelId)
 			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "StartTime", new.StartTime.String())
 		} else if old.LiveStatus == 2 && new.LiveStatus == 0 {
+			time.AfterFunc(5*time.Minute, func() {
+				close(channels[new.Id])
+			})
+
 			baseEmbed.New(new.Title, new.Url, "直播串流結束了！", new.Thumbnail).CheckAuthor(new.Author.Id).EndTime(new.EndTime, new.Length).Send(s, discordChannelId)
 			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "EndTime", new.EndTime.String(), "Length", new.Length.String())
 		}
@@ -250,7 +263,7 @@ func YoutubeNotify(name string) {
 			}
 
 			for _, comment := range comments {
-				if !tools.IsContain(commentIds, comment.Id) {
+				if !isContain(commentIds, comment.Id) {
 					db.Insert("Comment", comment.Map())
 				}
 			}
@@ -329,7 +342,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, video := range videos {
-		if tools.IsContain(videoIds, video.Id) {
+		if isContain(videoIds, video.Id) {
 			baseEmbed.New(video.Title, video.Url, "影片已從公開轉為會員限定了！", video.Thumbnail).Send(s, discordChannelId)
 			db.Update("Video", video.Id, "Member", true)
 		}
@@ -342,7 +355,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, video := range videos {
-		if tools.IsContain(videoIds, video.Id) {
+		if isContain(videoIds, video.Id) {
 			baseEmbed.New(video.Title, video.Url, "影片已從會員限定轉為公開了！", video.Thumbnail).Send(s, discordChannelId)
 			db.Update("Video", video.Id, "Member", false)
 		}
@@ -444,9 +457,10 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, comment := range comments {
-		if !tools.IsContain(commentIds, comment.Id) {
+		if !isContain(commentIds, comment.Id) {
 			comment = db.CompelteComment(comment)
-			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s", comment.Author.Title, comment.Author.Url, channel.Title, channel.Url, comment.Video.Title, comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
+				comment.Author.Title, comment.Author.Url, channel.Title, channel.Url, comment.Video.Title, comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
 			db.Insert("Comment", comment.Map())
 		}
 
@@ -456,9 +470,10 @@ func YoutubeNotify(name string) {
 		}
 
 		for _, reply := range replies {
-			if !tools.IsContain(replyIds, reply.Id) {
+			if !isContain(replyIds, reply.Id) {
 				reply = db.CompelteComment(reply)
-				s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s", reply.Author.Title, reply.Author.Url, channel.Title, channel.Url, reply.Video.Title, reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
+				s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
+					reply.Author.Title, reply.Author.Url, channel.Title, channel.Url, reply.Video.Title, reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
 				db.Insert("Comment", reply.Map())
 			}
 		}
@@ -871,7 +886,7 @@ func Collab(name string) {
 	}
 
 	for _, videoId := range newIds {
-		if tools.IsContain(oldIds, videoId) {
+		if isContain(oldIds, videoId) {
 			continue
 		}
 
@@ -897,7 +912,7 @@ func Collab(name string) {
 	}
 
 	for _, video := range videos {
-		if tools.IsContain(collabIds, video.Id) || tools.IsContain(oldIds, video.Id) {
+		if isContain(collabIds, video.Id) || isContain(oldIds, video.Id) {
 			continue
 		}
 
