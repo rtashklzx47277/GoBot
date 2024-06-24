@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -18,7 +19,6 @@ var (
 	s             *discordgo.Session
 	collabIds     = []string{}
 	messageIdList = []string{}
-	channels      = map[string]chan struct{}{}
 	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 )
 
@@ -127,6 +127,22 @@ var commands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "add-channels",
+		Description: "Add New Channels",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "channel-ids",
+				Description: "Youtube Channel Ids (separated by comma)",
+				Required:    true,
+			},
+		},
+	},
+	{
+		Name:        "update-channels-data",
+		Description: "Update Channels Data",
+	},
+	{
 		Name:        "get-twitch-access-token",
 		Description: "Return Twitch Access Token",
 	},
@@ -221,6 +237,51 @@ var commandsHandlers = map[string]func(s *discordgo.Session, i *discordgo.Intera
 		db.Update("Video", videoId, "Music", true)
 
 		sendResponse(s, i, "已將影片設定為音樂")
+	},
+	"add-channels": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if r := recover(); r != nil {
+				sendResponse(s, i, "似乎發生了什麼錯誤...")
+				log.Println("handler panic:", r)
+			}
+		}()
+
+		titles := []string{}
+		count := 0
+
+		for _, channelId := range strings.Split(i.ApplicationCommandData().Options[0].StringValue(), ",") {
+			channel, err := youtube.GetChannel(channelId)
+			if err != nil {
+				panic(err)
+			}
+
+			db.Insert("Channel", channel.Map())
+
+			titles = append(titles, fmt.Sprintf("***%s***", channel.Title))
+			count++
+		}
+
+		sendResponse(s, i, fmt.Sprintf("已新增%s共%d筆頻道資料！", strings.Join(titles, "、"), count))
+	},
+	"update-channels-data": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if r := recover(); r != nil {
+				sendResponse(s, i, "似乎發生了什麼錯誤...")
+				log.Println("handler panic:", r)
+			}
+		}()
+
+		for _, channelId := range db.Distinct("channel", "") {
+			channel, err := youtube.GetChannel(channelId)
+			if err != nil {
+				panic(err)
+			}
+
+			db.Update("Channel", channelId, "CustomId", channel.CustomId, "Title", channel.Title, "Description", channel.Description,
+				"ViewCount", channel.ViewCount, "SubscriberCount", channel.SubscriberCount)
+		}
+
+		sendResponse(s, i, "已更新所有頻道資料！")
 	},
 	"get-twitch-access-token": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {

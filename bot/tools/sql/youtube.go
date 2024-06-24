@@ -241,35 +241,41 @@ func (mySQL *MySQL) FindMusic(channelId string) []youtube.Video {
 	return videos
 }
 
-func (mySQL *MySQL) Distinct(target, channelId string) []string {
+func (mySQL *MySQL) Distinct(target, id string) []string {
 	var query string
 	var values []any
 
 	switch target {
+	case "channel":
+		query = "SELECT DISTINCT Id FROM Channel WHERE Id LIKE ?"
+		values = append(values, "UC%")
 	case "video":
 		query = "SELECT DISTINCT Id FROM Video WHERE ChannelId = ?"
-		values = append(values, channelId)
+		values = append(values, id)
 	case "public":
 		query = "SELECT DISTINCT Id FROM Video WHERE ChannelId = ? AND Member = ?"
-		values = append(values, channelId, 0)
+		values = append(values, id, 0)
 	case "member":
 		query = "SELECT DISTINCT Id FROM Video WHERE ChannelId = ? AND Member = ?"
-		values = append(values, channelId, 1)
+		values = append(values, id, 1)
 	case "livestream":
 		query = "SELECT DISTINCT Video.Id FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND Video.LiveStatus <> ? AND Video.Private = ?"
-		values = append(values, channelId, channelId, 0, 0)
+		values = append(values, id, id, 0, 0)
 	case "music":
 		query = "SELECT DISTINCT Video.Id FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND Video.Music = ? AND Video.Private = ?"
-		values = append(values, channelId, channelId, 1, 0)
-	case "comment":
-		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NULL"
-		values = append(values, channelId)
-	case "reply":
-		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NOT NULL"
-		values = append(values, channelId)
+		values = append(values, id, id, 1, 0)
 	case "collab":
 		query = "SELECT DISTINCT VideoId FROM Collab WHERE ChannelId = ?"
-		values = append(values, channelId)
+		values = append(values, id)
+	case "comment":
+		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NULL"
+		values = append(values, id)
+	case "reply":
+		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NOT NULL"
+		values = append(values, id)
+	case "message":
+		query = "SELECT DISTINCT Id FROM Message WHERE Id = ?"
+		values = append(values, id)
 	}
 
 	rows, err := mySQL.db.Query(query, values...)

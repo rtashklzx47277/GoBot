@@ -88,10 +88,7 @@ func YoutubeStreamNotify(name string) {
 		}
 
 		if video.Live {
-			stopper := make(chan struct{})
-			channels[videoId] = stopper
-
-			go LiveChat(video, channel, stopper)
+			go LiveChat(video, channel)
 		}
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
@@ -119,10 +116,6 @@ func YoutubeStreamNotify(name string) {
 					panic(err)
 				}
 
-				time.AfterFunc(5*time.Minute, func() {
-					close(channels[new.Id])
-				})
-
 				baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", thumbnail).Send(s, discordChannelId)
 				db.Update("Video", old.Id, "Private", new.Private)
 			}
@@ -133,10 +126,6 @@ func YoutubeStreamNotify(name string) {
 			baseEmbed.New(new.Title, new.Url, "直播串流開始了！", new.Thumbnail).CheckAuthor(new.Author.Id).StartTime(new.StartTime).Send(s, discordChannelId)
 			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "StartTime", new.StartTime.String())
 		} else if old.LiveStatus == 2 && new.LiveStatus == 0 {
-			time.AfterFunc(5*time.Minute, func() {
-				close(channels[new.Id])
-			})
-
 			baseEmbed.New(new.Title, new.Url, "直播串流結束了！", new.Thumbnail).CheckAuthor(new.Author.Id).EndTime(new.EndTime, new.Length).Send(s, discordChannelId)
 			db.Update("Video", new.Id, "LiveStatus", new.LiveStatus, "EndTime", new.EndTime.String(), "Length", new.Length.String())
 		}

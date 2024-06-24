@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var clientVersion = "2.20240122.00.00"
+var clientVersion = "2.20240620.05.00"
 
 type Message struct {
 	Id       string
@@ -24,39 +24,42 @@ type Message struct {
 	Text     string
 }
 
-func LiveChat(video youtube.Video, channel youtube.Channel, stopper chan struct{}) {
+func LiveChat(video youtube.Video, channel youtube.Channel) {
 	apiKey, continuation, err := getParameters(video.Id)
 	if err != nil {
 		return
 	}
 
+	messageIdList = append(messageIdList, db.Distinct("Message", video.Id)...)
+
 	for {
-		select {
-		case <-stopper:
+
+		data, err := getChatData(apiKey, continuation)
+		if err != nil {
+			continue
+		}
+
+		if data.Get("contents").Get("messageRenderer").Get("text").Get("runs").Index(0).Get("text").String() == "Sorry, live chat is currently unavailable." {
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「%s」聊天室已關閉或已轉為會員限定模式！", video.Title))
 			return
-		default:
-			data, err := getChatData(apiKey, continuation)
-			if err != nil {
-				continue
-			}
+		}
 
-			if !data.Exist("continuationContents") {
-				fmt.Println("cant find continuationContents")
-				fmt.Println(toJSON(data))
-				continue
-			}
+		if !data.Exist("continuationContents") {
+			fmt.Println("Can't find continuationContents!")
+			fmt.Println(toJSON(data))
+			continue
+		}
 
-			continuations := data.Get("continuationContents").Get("liveChatContinuation").Get("continuations").Index(0)
+		continuations := data.Get("continuationContents").Get("liveChatContinuation").Get("continuations").Index(0)
 
-			if continuations.Exist("timedContinuationData") {
-				continuation = continuations.Get("timedContinuationData").Get("continuation").String()
-			} else if continuations.Exist("invalidationContinuationData") {
-				continuation = continuations.Get("invalidationContinuationData").Get("continuation").String()
-			}
+		if continuations.Exist("timedContinuationData") {
+			continuation = continuations.Get("timedContinuationData").Get("continuation").String()
+		} else if continuations.Exist("invalidationContinuationData") {
+			continuation = continuations.Get("invalidationContinuationData").Get("continuation").String()
+		}
 
-			for _, action := range data.Get("continuationContents").Get("liveChatContinuation").Get("actions").JsonArray() {
-				getMessageData(action, video, channel)
-			}
+		for _, action := range data.Get("continuationContents").Get("liveChatContinuation").Get("actions").JsonArray() {
+			getMessageData(action, video, channel)
 		}
 	}
 }
@@ -191,12 +194,11 @@ func getMessageData(action *tools.Json, video youtube.Video, channel youtube.Cha
 		} else if item.Exist("liveChatSponsorshipsGiftRedemptionAnnouncementRenderer") {
 			rendererProcessor(item.Get("liveChatSponsorshipsGiftRedemptionAnnouncementRenderer"), "GiftReceive", video, channel)
 		} else if item.Exist("liveChatModeChangeMessageRenderer") {
-			renderer := item.Get("liveChatModeChangeMessageRenderer")
-			liveChatSetting(renderer)
+			liveChatSetting(item.Get("liveChatModeChangeMessageRenderer"))
 		} else if item.Exist("liveChatViewerEngagementMessageRenderer") {
 		} else if item.Exist("liveChatPlaceholderItemRenderer") {
 		} else {
-			fmt.Println("Error getting renderer from addChatItemAction")
+			fmt.Println("Error getting renderer from addChatItemAction!")
 			fmt.Println(toJSON(item))
 			return
 		}
@@ -212,7 +214,7 @@ func getMessageData(action *tools.Json, video youtube.Video, channel youtube.Cha
 		} else if item.Exist("liveChatTickerSponsorItemRenderer") {
 			rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatMembershipItemRenderer"), "Membership", video, channel)
 		} else {
-			fmt.Println("Error getting renderer from addLiveChatTickerItemAction")
+			fmt.Println("Error getting renderer from addLiveChatTickerItemAction!")
 			fmt.Println(toJSON(item))
 			return
 		}
@@ -222,7 +224,7 @@ func getMessageData(action *tools.Json, video youtube.Video, channel youtube.Cha
 		if item.Exist("liveChatTextMessageRenderer") {
 			rendererProcessor(item.Get("liveChatTextMessageRenderer"), "TextMessage", video, channel)
 		} else {
-			fmt.Println("Error getting renderer from addBannerToLiveChatCommand")
+			fmt.Println("Error getting renderer from addBannerToLiveChatCommand!")
 			fmt.Println(toJSON(item))
 			return
 		}
@@ -232,7 +234,7 @@ func getMessageData(action *tools.Json, video youtube.Video, channel youtube.Cha
 	} else if action.Exist("removeChatItemAction") {
 	} else if action.Exist("replaceChatItemAction") {
 	} else {
-		fmt.Println("Error getting action")
+		fmt.Println("Error getting action!")
 		fmt.Println(toJSON(action))
 		return
 	}
@@ -276,23 +278,23 @@ func rendererProcessor(renderer *tools.Json, form string, video youtube.Video, c
 
 	switch form {
 	case "TextMessage":
-		template = fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的聊天室「[%s](<%s>)」中留言：\n%s",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, video.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中留言： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
 	case "PaidMessage":
-		template = fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的聊天室「[%s](<%s>)」中發表超級留言(%s)：\n%s",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, video.Title, video.Url, message.Amount, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級留言(%s)： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Amount, message.Text)
 	case "PaidSticker":
-		template = fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的聊天室「[%s](<%s>)」中發表超級貼圖：\n%s",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, video.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級貼圖： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
 	case "Membership":
-		template = fmt.Sprintf("「[%s](<%s>)」成為「[%s](<%s>)」頻道的會員(%s)！",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, message.Badge)
+		template = fmt.Sprintf("**[%s](<%s>)** 成為了 **[%s](<%s>)** 的頻道會員(%s)！",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Badge)
 	case "GiftSend":
-		template = fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的聊天室「[%s](<%s>)」中贈送了會員：\n%s",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, video.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 贈送了 **[%s](<%s>)** 的頻道會員： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
 	case "GiftReceive":
-		template = fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的聊天室「[%s](<%s>)」中收到了會員贈禮：\n%s",
-			authorChannelName, authorChannelUrl, channel.Title, channel.Url, video.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<%s>)** 的頻道會員： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
 	}
 
 	s.ChannelMessageSend(testChannelId, template)
