@@ -18,14 +18,17 @@ import (
 )
 
 func main() {
+	// youtube.GetCommunity("UC1opHUrw8rvnsadT-iGp7Cg")
+	// LiveChatbyOriginal("K2i2rqBcqZs")
+
 	initial()
 
 	runGo(YoutubeStreamNotify, 1, "Aqua", "Shion")
 	runGo(YoutubeNotify, 10, "Aqua", "Shion")
+	runGo(Collab, 10, "Aqua", "Shion")
 	runGo(TwitchStreamNotify, 1, "Aqua", "Shion")
 	runGo(TwitchNotify, 10, "Aqua", "Shion")
-	runGo(News, 10, "Aqua", "Shion")
-	runGo(Collab, 10, "Aqua", "Shion")
+	// runGo(News, 10, "Aqua", "Shion")
 
 	select {}
 }
@@ -87,9 +90,9 @@ func YoutubeStreamNotify(name string) {
 			status = "member"
 		}
 
-		if video.Live {
-			go LiveChat(video, channel)
-		}
+		// if video.Live {
+		// 	go LiveChat(video, channel)
+		// }
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
 		db.Insert("Video", video.Map())
@@ -300,9 +303,10 @@ func YoutubeNotify(name string) {
 				db.Update("Video", new.Id, "PublishedTime", new.PublishedTime.String())
 			}
 
-			// if old.ViewCount/100000 != new.ViewCount/100000 {
-			// 	db.Update("Video", new.Id, "ViewCount", new.ViewCount)
-			// }
+			if old.ViewCount/100000 != new.ViewCount/100000 && !old.Music {
+				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, testChannelId)
+				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
+			}
 
 			if new.LiveStatus != 0 {
 				check, image, err := tools.ImageCheck(old.Thumbnail, new.Thumbnail)
@@ -466,6 +470,101 @@ func YoutubeNotify(name string) {
 				db.Insert("Comment", reply.Map())
 			}
 		}
+	}
+
+	postIds := db.Distinct("post", channelId)
+	posts, err := youtube.GetCommunity(channelId)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, post := range posts {
+		if !isContain(postIds, post.Id) {
+			var description string
+
+			if post.Member {
+				description = "會員限定"
+			}
+
+			if post.Renderer.Type == "Image" {
+				for i, image := range post.Renderer.Images {
+					err = tools.ImageDownload(image, "Youtube", channelId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+					if err != nil {
+						panic(err)
+					}
+				}
+			}
+
+			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("有新的%s社群投稿！ <%s>", description, post.Url))
+
+			db.Insert("Post", post.Map())
+
+			if post.Renderer.Type == "Poll" || post.Renderer.Type == "Quiz" {
+				for _, choice := range post.Renderer.Choices {
+					choiceMap := choice.Map()
+					choiceMap["PostId"] = post.Id
+					db.Insert("Choice", choiceMap)
+				}
+			}
+		}
+	}
+}
+
+func Collab(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Collab", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Collab")
+
+	channelId, discordChannelId := userDataMap[name]["Youtube"]["Id"], userDataMap[name]["Youtube"]["DiscordChannelId"]
+
+	oldIds := db.Distinct("collab", channelId)
+	newIds, err := youtube.GetCollab(channelId)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, videoId := range newIds {
+		if isContain(oldIds, videoId) {
+			continue
+		}
+
+		video, err := youtube.GetVideo(videoId)
+		if err != nil {
+			panic(err)
+		}
+
+		err = tools.ImageDownload(video.Thumbnail, "Youtube", channelId, "Collab", video.Id)
+		if err != nil {
+			panic(err)
+		}
+
+		discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, discordChannelId)
+		db.Insert("Video", video.Map())
+		db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": channelId})
+	}
+
+	oldIds = db.Distinct("collab", channelId)
+	videos, err := youtube.GetSchedule(name)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, video := range videos {
+		if isContain(collabIds, video.Id) || isContain(oldIds, video.Id) {
+			continue
+		}
+
+		s.ChannelMessageSendComplex(testChannelId, &discordgo.MessageSend{
+			Embed:      (*discordgo.MessageEmbed)(discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video)),
+			Components: getComponent(name, video.Id),
+		})
+
+		collabIds = append(collabIds, video.Id)
 	}
 }
 
@@ -856,79 +955,6 @@ func News(name string) {
 	}
 }
 
-func Collab(name string) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "Collab", name)
-			tools.ErrorRecord(r)
-		}
-	}()
-
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Collab")
-
-	channelId, discordChannelId := userDataMap[name]["Youtube"]["Id"], userDataMap[name]["Youtube"]["DiscordChannelId"]
-
-	oldIds := db.Distinct("collab", channelId)
-	newIds, err := youtube.GetCollab(channelId)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, videoId := range newIds {
-		if isContain(oldIds, videoId) {
-			continue
-		}
-
-		video, err := youtube.GetVideo(videoId)
-		if err != nil {
-			panic(err)
-		}
-
-		err = tools.ImageDownload(video.Thumbnail, "Youtube", channelId, "Collab", video.Id)
-		if err != nil {
-			panic(err)
-		}
-
-		discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, discordChannelId)
-		db.Insert("Video", video.Map())
-		db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": channelId})
-	}
-
-	oldIds = db.Distinct("collab", channelId)
-	videos, err := youtube.GetSchedule(name)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, video := range videos {
-		if isContain(collabIds, video.Id) || isContain(oldIds, video.Id) {
-			continue
-		}
-
-		s.ChannelMessageSendComplex(testChannelId, &discordgo.MessageSend{
-			Embed:      (*discordgo.MessageEmbed)(discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video)),
-			Components: getComponent(name, video.Id),
-		})
-
-		collabIds = append(collabIds, video.Id)
-	}
-}
-
-func runGo(f func(string), interval int, names ...string) {
-	for _, name := range names {
-		go func(name string) {
-			f(name)
-
-			ticker := time.NewTicker(time.Duration(interval) * time.Minute)
-			defer ticker.Stop()
-
-			for range ticker.C {
-				f(name)
-			}
-		}(name)
-	}
-}
-
 func initial() {
 	logFile, err := os.OpenFile("/bot/error.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -980,4 +1006,19 @@ func initial() {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 	defer s.Close()
+}
+
+func runGo(f func(string), interval int, names ...string) {
+	for _, name := range names {
+		go func(name string) {
+			f(name)
+
+			ticker := time.NewTicker(time.Duration(interval) * time.Minute)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				f(name)
+			}
+		}(name)
+	}
 }

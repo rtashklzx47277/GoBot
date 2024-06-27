@@ -7,7 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+)
+
+var (
+	secure_3PSID   = os.Getenv("SECURE_3PSID")
+	secure_3PSIDTS = os.Getenv("SECURE_3PSIDTS")
 )
 
 func GetCommunity(channelId string) ([]Post, error) {
@@ -17,8 +23,8 @@ func GetCommunity(channelId string) ([]Post, error) {
 		return []Post{}, err
 	}
 
-	// __Secure-3PSID
-	// __Secure-3PSIDTS
+	req.AddCookie(&http.Cookie{Name: "__Secure-3PSID", Value: secure_3PSID})
+	req.AddCookie(&http.Cookie{Name: "__Secure-3PSIDTS", Value: secure_3PSIDTS})
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -53,20 +59,26 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 		item = item.Get("backstagePostThreadRenderer").Get("post").Get("backstagePostRenderer")
 
-		posts = append(posts, Post{
-			Id:       item.Get("postId").String(),
-			Url:      fmt.Sprintf("https://www.youtube.com/post/%s", item.Get("postId").String()),
-			Text:     getContentText(item.Get("contentText")),
+		postId := item.Get("postId").String()
+
+		post := Post{
+			Id:       postId,
+			Url:      fmt.Sprintf("https://www.youtube.com/post/%s", postId),
+			Text:     getContentText(item),
 			Member:   item.Exist("sponsorsOnlyBadge"),
 			Renderer: getRenderer(item),
-		})
+		}
+
+		post.Author.Id = channelId
+
+		posts = append(posts, post)
 	}
 
 	return posts, nil
 }
 
-func getTab(js *tools.Json) *tools.Json {
-	for _, tab := range js.JsonArray() {
+func getTab(item *tools.Json) *tools.Json {
+	for _, tab := range item.JsonArray() {
 		if tab.Get("tabRenderer").Get("selected").Bool() {
 			return tab
 		}
@@ -75,10 +87,10 @@ func getTab(js *tools.Json) *tools.Json {
 	return &tools.Json{}
 }
 
-func getContentText(js *tools.Json) string {
+func getContentText(item *tools.Json) string {
 	var text string
 
-	for _, run := range js.Get("runs").JsonArray() {
+	for _, run := range item.Get("contentText").Get("runs").JsonArray() {
 		if run.Exist("navigationEndpoint") {
 			decodedUrl, err := url.QueryUnescape(run.Get("navigationEndpoint").Get("commandMetadata").Get("webCommandMetadata").Get("url").String())
 			if err != nil {
@@ -98,12 +110,12 @@ func getContentText(js *tools.Json) string {
 	return text
 }
 
-func getRenderer(js *tools.Json) Renderer {
-	if !js.Exist("backstageAttachment") {
+func getRenderer(item *tools.Json) Renderer {
+	if !item.Exist("backstageAttachment") {
 		return Renderer{Type: "None"}
 	}
 
-	attachment := js.Get("backstageAttachment")
+	attachment := item.Get("backstageAttachment")
 
 	var renderer Renderer
 
@@ -119,61 +131,59 @@ func getRenderer(js *tools.Json) Renderer {
 	} else if attachment.Exist("videoRenderer") {
 		renderer.Type = "Video"
 		renderer.Video.Id = attachment.Get("videoRenderer").Get("videoId").String()
-		renderer.Video.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", renderer.Video.Id)
 	} else if attachment.Exist("playlistRenderer") {
 		renderer.Type = "Playlist"
 		renderer.Playlist.Id = attachment.Get("playlistRenderer").Get("playlistId").String()
-		renderer.Playlist.Url = fmt.Sprintf("https://www.youtube.com/playlist?list=%s", renderer.Playlist.Id)
 	} else if attachment.Exist("pollRenderer") {
 		renderer.Type = "Poll"
-		renderer.Choices = getPoll(js)
+		renderer.Choices = getPoll(item)
 	} else if attachment.Exist("quizRenderer") {
 		renderer.Type = "Quiz"
-		renderer.Choices = getQuiz(js)
+		renderer.Choices = getQuiz(item)
 	}
 
 	return renderer
 }
 
-func getPoll(js *tools.Json) []Choice {
+func getPoll(item *tools.Json) []Choice {
 	var choices []Choice
 
-	if !js.Get("backstageAttachment").Exist("pollRenderer") {
+	if !item.Get("backstageAttachment").Exist("pollRenderer") {
 		return choices
 	}
 
-	for _, choice := range js.Get("backstageAttachment").Get("pollRenderer").Get("choices").JsonArray() {
+	for _, choice := range item.Get("backstageAttachment").Get("pollRenderer").Get("choices").JsonArray() {
 		choices = append(choices, Choice{
-			Text:  choice.Get("text").Get("runs").Index(0).Get("text").String(),
-			Image: getThumbnail(choice),
+			Type: "Poll",
+			Text: choice.Get("text").Get("runs").Index(0).Get("text").String(),
 		})
 	}
 
 	return choices
 }
 
-func getQuiz(js *tools.Json) []Choice {
+func getQuiz(item *tools.Json) []Choice {
 	var choices []Choice
 
-	if !js.Get("backstageAttachment").Exist("quizRenderer") {
+	if !item.Get("backstageAttachment").Exist("quizRenderer") {
 		return choices
 	}
 
-	for _, choice := range js.Get("backstageAttachment").Get("quizRenderer").Get("choices").JsonArray() {
+	for _, choice := range item.Get("backstageAttachment").Get("quizRenderer").Get("choices").JsonArray() {
 		choices = append(choices, Choice{
-			Text:      choice.Get("text").Get("runs").Index(0).Get("text").String(),
-			Image:     choice.Get("explanation").Get("runs").Index(0).Get("text").String(),
-			isCorrect: choice.Get("isCorrect").Bool(),
+			Type:    "Quiz",
+			Text:    choice.Get("text").Get("runs").Index(0).Get("text").String(),
+			Correct: choice.Get("isCorrect").Bool(),
 		})
 	}
 
 	return choices
 }
 
-func getThumbnail(js *tools.Json) string {
-	if !js.Exist("image") {
+func getThumbnail(item *tools.Json) string {
+	if !item.Exist("image") {
 		return ""
 	}
 
-	return js.Get("image").Get("thumbnails").Index(-1).Get("url").Split("=s")[0]
+	return item.Get("image").Get("thumbnails").Index(-1).Get("url").Split("=s")[0]
 }

@@ -267,6 +267,9 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 	case "collab":
 		query = "SELECT DISTINCT VideoId FROM Collab WHERE ChannelId = ?"
 		values = append(values, id)
+	case "post":
+		query = "SELECT DISTINCT Id FROM Post WHERE ChannelId = ?"
+		values = append(values, id)
 	case "comment":
 		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NULL"
 		values = append(values, id)

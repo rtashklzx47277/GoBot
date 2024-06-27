@@ -64,6 +64,7 @@ type Post struct {
 	Text     string
 	Member   bool
 	Renderer Renderer
+	Author   Channel
 }
 
 type Renderer struct {
@@ -75,9 +76,9 @@ type Renderer struct {
 }
 
 type Choice struct {
-	Text      string
-	Image     string
-	isCorrect bool
+	Type    string
+	Text    string
+	Correct bool
 }
 
 type ZipVideo struct {
@@ -190,6 +191,39 @@ func (comment Comment) Map() map[string]any {
 	}
 
 	return commentMap
+}
+
+func (post Post) Map() map[string]any {
+	postMap := map[string]any{
+		"Id":        post.Id,
+		"ChannelId": post.Author.Id,
+		"Text":      post.Text,
+		"Member":    post.Member,
+		"Type":      post.Renderer.Type,
+	}
+
+	if post.Renderer.Video.Id != "" {
+		postMap["VideoId"] = post.Renderer.Video.Id
+	}
+
+	if post.Renderer.Playlist.Id != "" {
+		postMap["PlaylistId"] = post.Renderer.Playlist.Id
+	}
+
+	return postMap
+}
+
+func (choice Choice) Map() map[string]any {
+	choiceMap := map[string]any{
+		"Type": choice.Type,
+		"Text": choice.Text,
+	}
+
+	if choice.Type == "Quiz" {
+		choiceMap["Correct"] = choice.Correct
+	}
+
+	return choiceMap
 }
 
 func getVideoStruct(data *tools.Json, videoId string) Video {
