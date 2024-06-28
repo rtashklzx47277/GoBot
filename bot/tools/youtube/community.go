@@ -20,7 +20,7 @@ func GetCommunity(channelId string) ([]Post, error) {
 	url := fmt.Sprintf("https://www.youtube.com/channel/%s/community", channelId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return []Post{}, err
+		return []Post{}, fmt.Errorf("error occurred at line 21: %v", err)
 	}
 
 	req.AddCookie(&http.Cookie{Name: "__Secure-3PSID", Value: secure_3PSID})
@@ -28,7 +28,7 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return []Post{}, err
+		return []Post{}, fmt.Errorf("error occurred at line 29: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -38,16 +38,16 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return []Post{}, err
+		return []Post{}, fmt.Errorf("error occurred at line 39: %v", err)
 	}
 
-	data := tools.Regexp(string(body), `ytInitialData = (.+);\s*<\/script>`, 1)[0][1]
+	data := tools.Regexp(string(body), `ytInitialData = (.+?);\s*<\/script>`, 1)[0][1]
 
 	var jsonData tools.Json
 
 	err = json.Unmarshal([]byte(data), &jsonData.Data)
 	if err != nil {
-		return []Post{}, err
+		return []Post{}, fmt.Errorf("error occurred at line 48: %v", err)
 	}
 
 	var posts []Post

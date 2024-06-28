@@ -18,9 +18,6 @@ import (
 )
 
 func main() {
-	// youtube.GetCommunity("UC1opHUrw8rvnsadT-iGp7Cg")
-	// LiveChatbyOriginal("K2i2rqBcqZs")
-
 	initial()
 
 	runGo(YoutubeStreamNotify, 1, "Aqua", "Shion")
@@ -28,9 +25,11 @@ func main() {
 	runGo(Collab, 10, "Aqua", "Shion")
 	runGo(TwitchStreamNotify, 1, "Aqua", "Shion")
 	runGo(TwitchNotify, 10, "Aqua", "Shion")
-	// runGo(News, 10, "Aqua", "Shion")
+	runGo(News, 10, "Aqua", "Shion")
 
 	select {}
+
+	// LiveChatbyOriginal("eyIubrMru0s")
 }
 
 func YoutubeStreamNotify(name string) {

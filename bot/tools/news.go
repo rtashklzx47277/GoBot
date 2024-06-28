@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -23,25 +24,19 @@ func GetNews(keyword string) ([]News, error) {
 
 	news, err := getPrtimes(keyword)
 	if err != nil {
-		return []News{}, err
+		return []News{}, fmt.Errorf("error occurred while getting Prtimes data: %v", err)
 	}
-
 	newsList = append(newsList, news...)
 
 	news, err = getPanora(keyword)
 	if err != nil {
-		return []News{}, err
+		return []News{}, fmt.Errorf("error occurred while getting Panora data: %v", err)
 	}
-
 	newsList = append(newsList, news...)
-
-	if keyword == "紫咲シオン" {
-		return newsList, nil
-	}
 
 	news, err = getRealsound(keyword)
 	if err != nil {
-		return []News{}, err
+		return []News{}, fmt.Errorf("error occurred while getting Realsound data: %v", err)
 	}
 
 	newsList = append(newsList, news...)
@@ -52,7 +47,7 @@ func GetNews(keyword string) ([]News, error) {
 func getPrtimes(keyword string) ([]News, error) {
 	var newsList []News
 
-	doc, err := getDoc(fmt.Sprintf("https://prtimes.jp/main/action.php?page=searchkey&search_word=%s", keyword))
+	doc, err := getDoc(fmt.Sprintf("https://prtimes.jp/main/action.php?page=searchkey&search_word=%s", url.QueryEscape(keyword)))
 	if err != nil {
 		return []News{}, err
 	}
@@ -94,18 +89,16 @@ func getPanora(keyword string) ([]News, error) {
 
 	var nodes []*html.Node
 
-	doc, err := getDoc(fmt.Sprintf("https://panora.tokyo/?s=%s", keyword))
+	doc, err := getDoc(fmt.Sprintf("https://panora.tokyo/?s=%s", url.QueryEscape(keyword)))
 	if err != nil {
 		return []News{}, err
 	}
-
 	nodes = append(nodes, doc.Find("article").Nodes[:3]...)
 
-	doc, err = getDoc(fmt.Sprintf("https://panora.tokyo/archives/tag/%s", keyword))
+	doc, err = getDoc(fmt.Sprintf("https://panora.tokyo/archives/tag/%s", url.QueryEscape(keyword)))
 	if err != nil {
 		return []News{}, err
 	}
-
 	nodes = append(nodes, doc.Find("article").Nodes[:3]...)
 
 	for _, node := range nodes {
@@ -143,19 +136,19 @@ func getRealsound(keyword string) ([]News, error) {
 
 	var nodes []*html.Node
 
-	doc, err := getDoc(fmt.Sprintf("https://realsound.jp/?s=%s", keyword))
+	doc, err := getDoc(fmt.Sprintf("https://realsound.jp/?s=%s", url.QueryEscape(keyword)))
 	if err != nil {
 		return []News{}, err
 	}
-
 	nodes = append(nodes, doc.Find("article").Nodes[:3]...)
 
-	doc, err = getDoc(fmt.Sprintf("https://realsound.jp/tag/%s", keyword))
-	if err != nil {
-		return []News{}, err
+	if keyword == "湊あくあ" {
+		doc, err = getDoc(fmt.Sprintf("https://realsound.jp/tag/%s", url.QueryEscape(keyword)))
+		if err != nil {
+			return []News{}, err
+		}
+		nodes = append(nodes, doc.Find("article").Nodes[:3]...)
 	}
-
-	nodes = append(nodes, doc.Find("article").Nodes[:3]...)
 
 	for _, node := range nodes {
 		nodeDoc := goquery.NewDocumentFromNode(node)

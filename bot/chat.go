@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -32,21 +33,17 @@ func LiveChat(video youtube.Video, channel youtube.Channel) {
 
 	messageIdList = append(messageIdList, db.Distinct("Message", video.Id)...)
 
-	for {
+	count := 0
 
+	for count < 5 {
 		data, err := getChatData(apiKey, continuation)
 		if err != nil {
 			continue
 		}
 
-		if data.Get("contents").Get("messageRenderer").Get("text").Get("runs").Index(0).Get("text").String() == "Sorry, live chat is currently unavailable." {
-			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「%s」聊天室已關閉或已轉為會員限定模式！", video.Title))
-			return
-		}
-
 		if !data.Exist("continuationContents") {
+			count++
 			fmt.Println("Can't find continuationContents!")
-			fmt.Println(toJSON(data))
 			continue
 		}
 
@@ -200,43 +197,50 @@ func getMessageData(action *tools.Json, video youtube.Video, channel youtube.Cha
 		} else {
 			fmt.Println("Error getting renderer from addChatItemAction!")
 			fmt.Println(toJSON(item))
-			return
 		}
 	} else if action.Exist("addLiveChatTickerItemAction") {
 		item := action.Get("addLiveChatTickerItemAction").Get("item")
 
 		if item.Exist("liveChatTickerPaidMessageItemRenderer") {
-			rendererProcessor(item.Get("liveChatTickerPaidMessageItemRenderer"), "PaidMessage", video, channel)
+			rendererProcessor(item.Get("liveChatTickerPaidMessageItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidMessageRenderer"), "PaidMessage", video, channel)
 		} else if item.Exist("liveChatTickerPaidStickerItemRenderer") {
 			rendererProcessor(item.Get("liveChatTickerPaidStickerItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidStickerRenderer"), "PaidSticker", video, channel)
-		} else if item.Exist("liveChatMembershipItemRenderer") {
-			rendererProcessor(item.Get("liveChatMembershipItemRenderer"), "Membership", video, channel)
 		} else if item.Exist("liveChatTickerSponsorItemRenderer") {
-			rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatMembershipItemRenderer"), "Membership", video, channel)
+			if item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Exist("liveChatMembershipItemRenderer") {
+				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatMembershipItemRenderer"), "Membership", video, channel)
+			} else if item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Exist("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer") {
+				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer"), "GiftSend", video, channel)
+			} else {
+				fmt.Println("Error getting renderer from liveChatTickerSponsorItemRenderer!")
+				fmt.Println(toJSON(item))
+			}
 		} else {
 			fmt.Println("Error getting renderer from addLiveChatTickerItemAction!")
 			fmt.Println(toJSON(item))
-			return
 		}
+	} else if action.Exist("updateLiveChatPollAction") {
+		liveChatPoll(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
+	} else if action.Exist("showLiveChatActionPanelAction") {
+		liveChatPoll(action.Get("showLiveChatActionPanelAction").Get("panelToShow").Get("liveChatActionPanelRenderer").Get("contents").Get("pollRenderer"))
 	} else if action.Exist("addBannerToLiveChatCommand") { // 釘選
 		item := action.Get("addBannerToLiveChatCommand").Get("bannerRenderer").Get("liveChatBannerRenderer").Get("contents")
 
 		if item.Exist("liveChatTextMessageRenderer") {
-			rendererProcessor(item.Get("liveChatTextMessageRenderer"), "TextMessage", video, channel)
+			rendererProcessor(item.Get("liveChatTextMessageRenderer"), "PinnedTextMessage", video, channel)
+		} else if item.Exist("liveChatBannerChatSummaryRenderer") {
 		} else {
 			fmt.Println("Error getting renderer from addBannerToLiveChatCommand!")
 			fmt.Println(toJSON(item))
-			return
 		}
 	} else if action.Exist("removeBannerForLiveChatCommand") { // 取消釘選
 	} else if action.Exist("liveChatReportModerationStateCommand") {
 	} else if action.Exist("removeChatItemByAuthorAction") {
 	} else if action.Exist("removeChatItemAction") {
+	} else if action.Exist("closeLiveChatActionPanelAction") {
 	} else if action.Exist("replaceChatItemAction") {
 	} else {
 		fmt.Println("Error getting action!")
 		fmt.Println(toJSON(action))
-		return
 	}
 }
 
@@ -246,19 +250,20 @@ func rendererProcessor(renderer *tools.Json, form string, video youtube.Video, c
 		return
 	}
 
-	if !renderer.Exist("id") {
-		return
-	}
-
 	id := renderer.Get("id").String()
-	if isContain(messageIdList, id) {
+	if id == "" || isContain(messageIdList, id) {
 		return
 	}
-
 	messageIdList = append(messageIdList, id)
 
 	if form == "GiftSend" {
+		if renderer.Exist("showItemEndpoint") {
+			renderer = renderer.Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer")
+		}
+
 		renderer = renderer.Get("header").Get("liveChatSponsorshipsHeaderRenderer")
+	} else if form == "Membership" && renderer.Exist("headerPrimaryText") {
+		form = "Milestone"
 	}
 
 	message := Message{
@@ -272,7 +277,6 @@ func rendererProcessor(renderer *tools.Json, form string, video youtube.Video, c
 	}
 
 	var template string
-
 	authorChannelName := renderer.Get("authorName").Get("simpleText").String()
 	authorChannelUrl := fmt.Sprintf("https://www.youtube.com/channel/%s", authorChannelId)
 
@@ -289,28 +293,44 @@ func rendererProcessor(renderer *tools.Json, form string, video youtube.Video, c
 	case "Membership":
 		template = fmt.Sprintf("**[%s](<%s>)** 成為了 **[%s](<%s>)** 的頻道會員(%s)！",
 			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Badge)
+	case "Milestone":
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中使用里程碑紀念發言： `%s`",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
 	case "GiftSend":
-		template = fmt.Sprintf("**[%s](<%s>)** 贈送了 **[%s](<%s>)** 的頻道會員： `%s`",
-			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份 **[%s](<%s>)** 的頻道會員！",
+			authorChannelName, authorChannelUrl, strings.Split(message.Text, " ")[1], channel.Title, video.Url)
 	case "GiftReceive":
-		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<%s>)** 的頻道會員： `%s`",
-			authorChannelName, authorChannelUrl, channel.Title, video.Url, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<%s>)** 的頻道會員！",
+			authorChannelName, authorChannelUrl, channel.Title, video.Url)
+	case "PinnedTextMessage":
+		template = fmt.Sprintf("**[%s](<%s>)** 已釘選了 **[%s](<%s>)** 的一則訊息： `%s`",
+			channel.Title, video.Url, authorChannelName, authorChannelUrl, message.Text)
 	}
 
 	s.ChannelMessageSend(testChannelId, template)
 	db.Insert("Message", message.Map())
 }
 
+func liveChatPoll(renderer *tools.Json) {
+	id := renderer.Get("liveChatPollId").String()
+	if id == "" || isContain(messageIdList, id) {
+		return
+	}
+	messageIdList = append(messageIdList, id)
+
+	text := fmt.Sprintf("已發起投票: %s", parseRun(renderer.Get("header").Get("pollHeaderRenderer").Get("pollQuestion")))
+	for _, choice := range renderer.Get("choices").JsonArray() {
+		text += fmt.Sprintf("\n- %s", parseRun(choice.Get("text")))
+	}
+
+	s.ChannelMessageSend(testChannelId, text)
+}
+
 func liveChatSetting(renderer *tools.Json) {
-	if !renderer.Exist("id") {
-		return
-	}
-
 	id := renderer.Get("id").String()
-	if isContain(messageIdList, id) {
+	if id == "" || isContain(messageIdList, id) {
 		return
 	}
-
 	messageIdList = append(messageIdList, id)
 
 	s.ChannelMessageSend(testChannelId, getMessage(renderer))
@@ -327,41 +347,53 @@ func getBadge(renderer *tools.Json) string {
 }
 
 func getMessage(renderer *tools.Json) string {
+	if renderer.Exist("message") {
+		var text string
+
+		for _, run := range renderer.Get("message").Get("runs").JsonArray() {
+			if run.Exist("text") {
+				text += run.Get("text").String()
+			} else if run.Exist("emoji") {
+				text += run.Get("emoji").Get("shortcuts").Index(0).String()
+			} else {
+				fmt.Println(toJSON(run))
+			}
+		}
+
+		if renderer.Exist("subtext") {
+			text += "\n" + parseRun(renderer.Get("subtext"))
+		}
+
+		return text
+	}
+
 	if renderer.Exist("sticker") {
 		return renderer.Get("sticker").Get("accessibility").Get("accessibilityData").Get("label").String()
 	}
 
+	if renderer.Exist("headerPrimaryText") {
+		return parseRun(renderer.Get("headerPrimaryText"))
+	}
+
 	if renderer.Exist("headerSubtext") {
-		return parseRun(renderer, "headerSubtext")
+		return parseRun(renderer.Get("headerSubtext"))
 	}
 
 	if renderer.Exist("primaryText") {
-		return parseRun(renderer, "primaryText")
+		return parseRun(renderer.Get("primaryText"))
 	}
 
-	var text string
-
-	for _, run := range renderer.Get("message").Get("runs").JsonArray() {
-		if run.Exist("text") {
-			text += run.Get("text").String()
-		} else if run.Exist("emoji") {
-			text += run.Get("emoji").Get("shortcuts").Index(0).String()
-		} else {
-			fmt.Println(toJSON(run))
-		}
-	}
-
-	if renderer.Exist("subtext") {
-		text += "\n" + parseRun(renderer, "subtext")
-	}
-
-	return text
+	return ""
 }
 
-func parseRun(renderer *tools.Json, class string) string {
+func parseRun(renderer *tools.Json) string {
+	if renderer.Exist("simpleText") {
+		return renderer.Get("simpleText").String()
+	}
+
 	var text string
 
-	for _, run := range renderer.Get(class).Get("runs").JsonArray() {
+	for _, run := range renderer.Get("runs").JsonArray() {
 		if run.Exist("text") {
 			text += run.Get("text").String()
 		} else {
