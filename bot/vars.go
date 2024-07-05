@@ -71,18 +71,6 @@ var userDataMap = map[string]map[string]map[string]string{
 
 var commands = []*discordgo.ApplicationCommand{
 	{
-		Name:        "member",
-		Description: "New Member Stream",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "video-id",
-				Description: "Youtube Video Id",
-				Required:    true,
-			},
-		},
-	},
-	{
 		Name:        "collab",
 		Description: "New Collab Stream",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -149,50 +137,6 @@ var commands = []*discordgo.ApplicationCommand{
 }
 
 var commandsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	"member": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		defer func() {
-			if r := recover(); r != nil {
-				sendResponse(s, i, "似乎發生了什麼錯誤...")
-				log.Println("handler panic:", r)
-			}
-		}()
-
-		videoId := i.ApplicationCommandData().Options[0].StringValue()
-
-		if !db.Find("Video", "WHERE Id = ?", videoId) {
-			video, err := youtube.GetVideo(videoId)
-			if err != nil {
-				panic(err)
-			}
-
-			channel, err := youtube.GetChannel(video.Author.Id)
-			if err != nil {
-				panic(err)
-			}
-
-			err = tools.ImageDownload(video.Thumbnail, "Youtube", channel.Id, "Video", video.Id)
-			if err != nil {
-				panic(err)
-			}
-
-			video.Member = true
-
-			var discordChannelId string
-
-			if video.Author.Id == userDataMap["Aqua"]["Youtube"]["Id"] {
-				discordChannelId = userDataMap["Aqua"]["Youtube"]["DiscordChannelId"]
-			} else if video.Author.Id == userDataMap["Shion"]["Youtube"]["Id"] {
-				discordChannelId = userDataMap["Shion"]["Youtube"]["DiscordChannelId"]
-			}
-
-			discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon).NewNotify("member", video).Send(s, discordChannelId)
-			db.Insert("Video", video.Map())
-			sendResponse(s, i, "已新增會員限定影片！")
-		} else {
-			db.Update("Video", videoId, "Member", true)
-			sendResponse(s, i, "已將影片改為會員限定！")
-		}
-	},
 	"collab": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {
 			if r := recover(); r != nil {

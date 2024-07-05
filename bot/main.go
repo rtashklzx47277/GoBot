@@ -20,16 +20,14 @@ import (
 func main() {
 	initial()
 
-	runGo(YoutubeStreamNotify, 1, "Aqua", "Shion")
-	runGo(YoutubeNotify, 10, "Aqua", "Shion")
-	runGo(Collab, 10, "Aqua", "Shion")
-	runGo(TwitchStreamNotify, 1, "Aqua", "Shion")
-	runGo(TwitchNotify, 10, "Aqua", "Shion")
-	runGo(News, 10, "Aqua", "Shion")
+	runGo(YoutubeStreamNotify, 30, "Aqua", "Shion")
+	runGo(YoutubeNotify, 300, "Aqua", "Shion")
+	runGo(Collab, 600, "Aqua", "Shion")
+	runGo(TwitchStreamNotify, 60, "Aqua", "Shion")
+	runGo(TwitchNotify, 600, "Aqua", "Shion")
+	runGo(News, 600, "Aqua", "Shion")
 
 	select {}
-
-	// LiveChatbyOriginal("eyIubrMru0s")
 }
 
 func YoutubeStreamNotify(name string) {
@@ -89,9 +87,9 @@ func YoutubeStreamNotify(name string) {
 			status = "member"
 		}
 
-		// if video.Live {
-		// 	go LiveChat(video, channel)
-		// }
+		if video.Live {
+			go LiveChat(video.Id, channel.Title)
+		}
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
 		db.Insert("Video", video.Map())
@@ -201,21 +199,6 @@ func YoutubeNotify(name string) {
 		panic(err)
 	}
 
-	oldMusic := db.FindMusic(channelId)
-	newMusic, err := youtube.GetVideos(db.Distinct("music", channelId))
-	if err != nil {
-		panic(err)
-	}
-
-	for i := range oldMusic {
-		old, new := oldMusic[i], newMusic[i]
-
-		if (new.ViewCount < 1000000 && new.ViewCount/100000 > old.ViewCount/100000) || (new.ViewCount >= 1000000 && new.ViewCount/500000 > old.ViewCount/500000) {
-			baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "ViewCount", new.ViewCount)
-		}
-	}
-
 	oldVideos := db.FindVideos(channelId)
 	newVideos, err := youtube.GetVideos(db.Distinct("video", channelId))
 	if err != nil {
@@ -261,7 +244,9 @@ func YoutubeNotify(name string) {
 			// turn to public
 
 			baseEmbed.New(new.Title, new.Url, "影片已設為公開了！", new.Thumbnail).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "Title", new.Title, "Description", new.Description, "Length", new.Length.String(), "ViewCount", new.ViewCount, "LiveStatus", new.LiveStatus, "PublishedTime", new.PublishedTime.String(), "ScheduledTime", new.ScheduledTime.String(), "StartTime", new.StartTime.String(), "EndTime", new.EndTime.String(), "Comment", new.Comment, "Live", new.Live, "Private", new.Private)
+			db.Update("Video", new.Id, "Title", new.Title, "Description", new.Description, "Length", new.Length.String(), "ViewCount", new.ViewCount, "LiveStatus", new.LiveStatus,
+				"PublishedTime", new.PublishedTime.String(), "ScheduledTime", new.ScheduledTime.String(), "StartTime", new.StartTime.String(), "EndTime", new.EndTime.String(),
+				"Comment", new.Comment, "Live", new.Live, "Private", new.Private)
 		} else if !old.Private && !new.Private {
 			if old.Comment && !new.Comment {
 				baseEmbed.New(new.Title, new.Url, "影片留言功能已停用！", new.Thumbnail).Send(s, discordChannelId)
@@ -302,7 +287,10 @@ func YoutubeNotify(name string) {
 				db.Update("Video", new.Id, "PublishedTime", new.PublishedTime.String())
 			}
 
-			if old.ViewCount/100000 != new.ViewCount/100000 && !old.Music {
+			if old.Music && ((new.ViewCount < 1000000 && new.ViewCount/100000 > old.ViewCount/100000) || (new.ViewCount >= 1000000 && new.ViewCount/500000 > old.ViewCount/500000)) {
+				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, discordChannelId)
+				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
+			} else if !old.Music && new.ViewCount/100000 > old.ViewCount/100000 {
 				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, testChannelId)
 				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
 			}
@@ -442,7 +430,7 @@ func YoutubeNotify(name string) {
 	}
 
 	commentIds := db.Distinct("comment", channelId)
-	replyIds := db.Distinct("comment", channelId)
+	replyIds := db.Distinct("reply", channelId)
 	comments, err := youtube.GetComments("channel", channelId)
 	if err != nil {
 		panic(err)
@@ -475,6 +463,10 @@ func YoutubeNotify(name string) {
 	posts, err := youtube.GetCommunity(channelId)
 	if err != nil {
 		panic(err)
+	}
+
+	if len(posts) == 0 {
+		s.ChannelMessageSend(testChannelId, "Youtube會員Cookie可能已過期！")
 	}
 
 	for _, post := range posts {
@@ -1012,7 +1004,7 @@ func runGo(f func(string), interval int, names ...string) {
 		go func(name string) {
 			f(name)
 
-			ticker := time.NewTicker(time.Duration(interval) * time.Minute)
+			ticker := time.NewTicker(time.Duration(interval) * time.Second)
 			defer ticker.Stop()
 
 			for range ticker.C {

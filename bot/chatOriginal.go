@@ -21,7 +21,12 @@ func LiveChatbyOriginal(videoId string) {
 
 	count := 0
 
-	for count < 5 {
+	for {
+		if count == 5 {
+			s.ChannelMessageSend(testChannelId, "聊天室已關閉或直播已轉為會員限定模式！")
+			break
+		}
+
 		data, err := getChatData(apiKey, continuation)
 		if err != nil {
 			continue
@@ -93,6 +98,10 @@ func getMessageDataOriginal(action *tools.Json) {
 			fmt.Println("Error getting renderer from addLiveChatTickerItemAction!")
 			fmt.Println(toJSON(item))
 		}
+	} else if action.Exist("updateLiveChatPollAction") {
+		liveChatPollOriginal(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
+	} else if action.Exist("showLiveChatActionPanelAction") {
+		liveChatPollOriginal(action.Get("showLiveChatActionPanelAction").Get("panelToShow").Get("liveChatActionPanelRenderer").Get("contents").Get("pollRenderer"))
 	} else if action.Exist("addBannerToLiveChatCommand") { // 釘選
 		item := action.Get("addBannerToLiveChatCommand").Get("bannerRenderer").Get("liveChatBannerRenderer").Get("contents")
 
@@ -108,10 +117,6 @@ func getMessageDataOriginal(action *tools.Json) {
 	} else if action.Exist("removeChatItemByAuthorAction") {
 	} else if action.Exist("removeChatItemAction") {
 	} else if action.Exist("closeLiveChatActionPanelAction") {
-	} else if action.Exist("updateLiveChatPollAction") {
-		liveChatPollOriginal(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
-	} else if action.Exist("showLiveChatActionPanelAction") {
-		liveChatPollOriginal(action.Get("showLiveChatActionPanelAction").Get("panelToShow").Get("liveChatActionPanelRenderer").Get("contents").Get("pollRenderer"))
 	} else if action.Exist("replaceChatItemAction") {
 	} else {
 		fmt.Println("Error getting action!")

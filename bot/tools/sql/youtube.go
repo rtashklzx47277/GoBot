@@ -261,9 +261,6 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 	case "livestream":
 		query = "SELECT DISTINCT Video.Id FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND Video.LiveStatus <> ? AND Video.Private = ?"
 		values = append(values, id, id, 0, 0)
-	case "music":
-		query = "SELECT DISTINCT Video.Id FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND Video.Music = ? AND Video.Private = ?"
-		values = append(values, id, id, 1, 0)
 	case "collab":
 		query = "SELECT DISTINCT VideoId FROM Collab WHERE ChannelId = ?"
 		values = append(values, id)
