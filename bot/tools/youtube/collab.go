@@ -19,7 +19,7 @@ func GetCollab(channelId string) ([]string, error) {
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Encoding", "deflate")
 	req.Header.Set("Referer", fmt.Sprintf("https://holodex.net/channel/%s/collabs", channelId))
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", tools.UserAgent)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 var messageIds = []string{}
 
 func LiveChatbyOriginal(videoId string) {
-	apiKey, continuation, err := getParameters(videoId)
+	_, apiKey, continuation, err := getParameters(videoId)
 	if err != nil {
 		return
 	}
@@ -34,7 +34,6 @@ func LiveChatbyOriginal(videoId string) {
 
 		if !data.Exist("continuationContents") {
 			count++
-			fmt.Println("Can't find continuationContents!")
 			continue
 		}
 
@@ -126,7 +125,7 @@ func getMessageDataOriginal(action *tools.Json) {
 
 func rendererProcessorOriginal(renderer *tools.Json, form string) {
 	messageId := renderer.Get("id").String()
-	if messageId == "" || isContain(messageIds, messageId) {
+	if messageId == "" || tools.IsContain(messageIds, messageId) {
 		return
 	}
 
@@ -176,7 +175,7 @@ func liveChatSettingOriginal(renderer *tools.Json) {
 	}
 
 	id := renderer.Get("id").String()
-	if isContain(messageIds, id) {
+	if tools.IsContain(messageIds, id) {
 		return
 	}
 
@@ -191,7 +190,7 @@ func liveChatPollOriginal(renderer *tools.Json) {
 	}
 
 	id := renderer.Get("liveChatPollId").String()
-	if isContain(messageIds, id) {
+	if tools.IsContain(messageIds, id) {
 		return
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"GoBot/tools"
-	"GoBot/tools/youtube"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -18,6 +17,7 @@ var clientVersion = "2.20240620.05.00"
 type Message struct {
 	Id       string
 	VideoId  string
+	Type     string
 	AuthorId string
 	Time     tools.Time
 	Badge    string
@@ -25,19 +25,22 @@ type Message struct {
 	Text     string
 }
 
-func LiveChat(videoId, channelTitle string) {
-	apiKey, continuation, err := getParameters(videoId)
+func LiveChat(videoId string) {
+	channelTitle, apiKey, continuation, err := getParameters(videoId)
 	if err != nil {
 		return
 	}
 
 	messageIdList = append(messageIdList, db.Distinct("message", videoId)...)
 
+	fmt.Printf("Start Getting Video Chat: %s\n", videoId)
+	defer fmt.Printf("End Getting Video Chat: %s\n", videoId)
+
 	count := 0
 
 	for {
 		if count == 5 {
-			s.ChannelMessageSend(testChannelId, "聊天室已關閉或直播已轉為會員限定模式！")
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("%s 聊天室已關閉或直播已轉為會員限定模式！", videoId))
 			break
 		}
 
@@ -65,43 +68,58 @@ func LiveChat(videoId, channelTitle string) {
 	}
 }
 
-func getParameters(videoId string) (string, string, error) {
+func getParameters(videoId string) (string, string, string, error) {
 	url := fmt.Sprintf("https://www.youtube.com/live_chat?v=%s", videoId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	req.Header.Set("User-Agent", youtube.UserAgent)
+	req.Header.Set("User-Agent", tools.UserAgent)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 
-		return "", "", fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
+		return "", "", "", fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
+	}
+
+	channelTitle, err := getChannelTitle(body)
+	if err != nil {
+		return "", "", "", err
 	}
 
 	apiKey, err := getApiKey(body)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	continuation, err := getContinuation(body)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return apiKey, continuation, nil
+	return channelTitle, apiKey, continuation, nil
+}
+
+func getChannelTitle(body []byte) (string, error) {
+	match := tools.Regexp(string(body), `{"authorName":{"simpleText":"(.*)"}`, 1)
+
+	if len(match) == 0 {
+		return "", errors.New("fail to get channel title")
+	}
+
+	return match[0][1], nil
 }
 
 func getApiKey(body []byte) (string, error) {
@@ -249,16 +267,16 @@ func getMessageData(action *tools.Json, videoId, channelTitle string) {
 }
 
 func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle string) {
-	authorChannelId := renderer.Get("authorExternalChannelId").String()
-	if !isWatch(authorChannelId) {
+	authorId := renderer.Get("authorExternalChannelId").String()
+	if !isWatch(authorId) {
 		return
 	}
 
-	id := renderer.Get("id").String()
-	if id == "" || isContain(messageIdList, id) {
+	messageId := renderer.Get("id").String()
+	if messageId == "" || tools.IsContain(messageIdList, messageId) {
 		return
 	}
-	messageIdList = append(messageIdList, id)
+	messageIdList = append(messageIdList, messageId)
 
 	if form == "GiftSend" {
 		if renderer.Exist("showItemEndpoint") {
@@ -271,9 +289,10 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle string)
 	}
 
 	message := Message{
-		Id:       id,
+		Id:       messageId,
 		VideoId:  videoId,
-		AuthorId: authorChannelId,
+		Type:     form,
+		AuthorId: authorId,
 		Time:     tools.Time(time.Unix(0, int64(renderer.Get("timestampUsec").Int()*1000))),
 		Badge:    getBadge(renderer),
 		Amount:   renderer.Get("purchaseAmountText").Get("simpleText").String(),
@@ -281,34 +300,35 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle string)
 	}
 
 	var template string
-	authorChannelName := renderer.Get("authorName").Get("simpleText").String()
-	authorChannelUrl := fmt.Sprintf("https://www.youtube.com/channel/%s", authorChannelId)
+	authorName := renderer.Get("authorName").Get("simpleText").String()
+	authorUrl := fmt.Sprintf("https://www.youtube.com/channel/%s", authorId)
+	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)
 
 	switch form {
 	case "TextMessage":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<https://www.youtube.com/watch?v=%s>)** 的聊天室中留言： `%s`",
-			authorChannelName, authorChannelUrl, channelTitle, videoId, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中留言： `%s`",
+			authorName, authorUrl, channelTitle, videoUrl, message.Text)
 	case "PaidMessage":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<https://www.youtube.com/watch?v=%s>)** 的聊天室中購買超級留言(%s)： `%s`",
-			authorChannelName, authorChannelUrl, channelTitle, videoId, message.Amount, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級留言(%s)： `%s`",
+			authorName, authorUrl, channelTitle, videoUrl, message.Amount, message.Text)
 	case "PaidSticker":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<https://www.youtube.com/watch?v=%s>)** 的聊天室中購買超級貼圖： `%s`",
-			authorChannelName, authorChannelUrl, channelTitle, videoId, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級貼圖： `%s`",
+			authorName, authorUrl, channelTitle, videoUrl, message.Text)
 	case "Membership":
-		template = fmt.Sprintf("**[%s](<%s>)** 成為了 **[%s](<https://www.youtube.com/watch?v=%s>)** 的頻道會員(%s)！",
-			authorChannelName, authorChannelUrl, channelTitle, videoId, message.Badge)
+		template = fmt.Sprintf("**[%s](<%s>)** 成為了 **[%s](<%s>)** 的頻道會員(%s)！",
+			authorName, authorUrl, channelTitle, videoUrl, message.Badge)
 	case "Milestone":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<https://www.youtube.com/watch?v=%s>)** 的聊天室中使用里程碑紀念發言： `%s`",
-			authorChannelName, authorChannelUrl, channelTitle, videoId, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中使用里程碑紀念發言： `%s`",
+			authorName, authorUrl, channelTitle, videoUrl, message.Text)
 	case "GiftSend":
-		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份 **[%s](<https://www.youtube.com/watch?v=%s>)** 的頻道會員！",
-			authorChannelName, authorChannelUrl, strings.Split(message.Text, " ")[1], channelTitle, videoId)
+		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份 **[%s](<%s>)** 的頻道會員！",
+			authorName, authorUrl, strings.Split(message.Text, " ")[1], channelTitle, videoUrl)
 	case "GiftReceive":
-		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<https://www.youtube.com/watch?v=%s>)** 的頻道會員！",
-			authorChannelName, authorChannelUrl, channelTitle, videoId)
+		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<%s>)** 的頻道會員！",
+			authorName, authorUrl, channelTitle, videoUrl)
 	case "PinnedTextMessage":
-		template = fmt.Sprintf("**[%s](<https://www.youtube.com/watch?v=%s>)** 已釘選了 **[%s](<%s>)** 的一則訊息： `%s`",
-			channelTitle, videoId, authorChannelName, authorChannelUrl, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 已釘選了 **[%s](<%s>)** 的一則訊息： `%s`",
+			channelTitle, videoUrl, authorName, authorUrl, message.Text)
 	}
 
 	s.ChannelMessageSend(testChannelId, template)
@@ -317,7 +337,7 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle string)
 
 func liveChatPoll(renderer *tools.Json) {
 	id := renderer.Get("liveChatPollId").String()
-	if id == "" || isContain(messageIdList, id) {
+	if id == "" || tools.IsContain(messageIdList, id) {
 		return
 	}
 	messageIdList = append(messageIdList, id)
@@ -332,7 +352,7 @@ func liveChatPoll(renderer *tools.Json) {
 
 func liveChatSetting(renderer *tools.Json) {
 	id := renderer.Get("id").String()
-	if id == "" || isContain(messageIdList, id) {
+	if id == "" || tools.IsContain(messageIdList, id) {
 		return
 	}
 	messageIdList = append(messageIdList, id)
@@ -409,7 +429,7 @@ func parseRun(renderer *tools.Json) string {
 }
 
 func isWatch(channelId string) bool {
-	for key := range youtube.WatchList {
+	for key := range tools.ChannelList {
 		if key == channelId {
 			return true
 		}
@@ -427,6 +447,7 @@ func (message Message) Map() map[string]any {
 	messageMap := map[string]any{
 		"Id":       message.Id,
 		"VideoId":  message.VideoId,
+		"Type":     message.Type,
 		"AuthorId": message.AuthorId,
 		"Time":     message.Time.String(),
 		"Text":     message.Text,

@@ -15,9 +15,8 @@ import (
 )
 
 var (
-	DefaultImage = "https://imgur.com/2wAkxNb.png"
-	imgurToken   = os.Getenv("IMGUR_TOKEN")
-	albumId      = os.Getenv("IMGUR_ALBUM")
+	imgurToken = os.Getenv("IMGUR_TOKEN")
+	albumId    = os.Getenv("IMGUR_ALBUM")
 )
 
 func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {

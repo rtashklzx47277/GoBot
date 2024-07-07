@@ -5,6 +5,7 @@ import (
 	"GoBot/tools/discord"
 	"GoBot/tools/fanbox"
 	"GoBot/tools/sql"
+	"GoBot/tools/tiktok"
 	"GoBot/tools/twitcasting"
 	"GoBot/tools/twitch"
 	"GoBot/tools/youtube"
@@ -17,14 +18,241 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+var (
+	db            *sql.MySQL
+	s             *discordgo.Session
+	collabIds     = []string{}
+	messageIdList = []string{}
+	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
+
+	commands = []*discordgo.ApplicationCommand{
+		{
+			Name:        "collab",
+			Description: "New Collab Stream",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "collab-with",
+					Description: "Which User Is Collabed With",
+					Required:    true,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "Aqua",
+							Value: "aqua",
+						},
+						{
+							Name:  "Shion",
+							Value: "shion",
+						},
+						{
+							Name:  "Both",
+							Value: "both",
+						},
+					},
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "video-id",
+					Description: "Youtube Video Id",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "music",
+			Description: "Set Video As Music",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "video-id",
+					Description: "Youtube Video Id",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "add-channels",
+			Description: "Add New Channels",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "channel-ids",
+					Description: "Youtube Channel Ids (separated by comma)",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "update-channels-data",
+			Description: "Update Channels Data",
+		},
+		{
+			Name:        "get-twitch-access-token",
+			Description: "Return Twitch Access Token",
+		},
+	}
+	commandsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"collab": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			user := i.ApplicationCommandData().Options[0].StringValue()
+			videoId := i.ApplicationCommandData().Options[1].StringValue()
+
+			if !db.Find("Video", "WHERE Id = ?", videoId) {
+				video, err := youtube.GetVideo(videoId)
+				if err != nil {
+					panic(err)
+				}
+
+				err = tools.ImageDownload(video.Thumbnail, "Youtube", tools.UserData[user]["Youtube"]["Id"], "Collab", video.Id)
+				if err != nil {
+					panic(err)
+				}
+
+				discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, tools.UserData[user]["Youtube"]["DiscordChannelId"])
+				db.Insert("Video", video.Map())
+				db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				discord.SendResponse(s, i, "已新增連動影片！")
+			} else {
+				db.Insert("Collab", map[string]any{"VideoId": videoId, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				discord.SendResponse(s, i, "已新增連動資料！")
+			}
+		},
+		"music": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			videoId := i.ApplicationCommandData().Options[0].StringValue()
+
+			db.Update("Video", videoId, "Music", true)
+
+			discord.SendResponse(s, i, "已將影片設定為音樂")
+		},
+		"add-channels": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			titles := []string{}
+			count := 0
+
+			for _, channelId := range strings.Split(i.ApplicationCommandData().Options[0].StringValue(), ",") {
+				channel, err := youtube.GetChannel(channelId)
+				if err != nil {
+					panic(err)
+				}
+
+				db.Insert("Channel", channel.Map())
+
+				titles = append(titles, fmt.Sprintf("***%s***", channel.Title))
+				count++
+			}
+
+			discord.SendResponse(s, i, fmt.Sprintf("已新增%s共%d筆頻道資料！", strings.Join(titles, "、"), count))
+		},
+		"update-channels-data": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			for _, channelId := range db.Distinct("channel", "") {
+				channel, err := youtube.GetChannel(channelId)
+				if err != nil {
+					panic(err)
+				}
+
+				db.Update("Channel", channelId, "CustomId", channel.CustomId, "Title", channel.Title, "Description", channel.Description,
+					"ViewCount", channel.ViewCount, "SubscriberCount", channel.SubscriberCount)
+			}
+
+			discord.SendResponse(s, i, "已更新所有頻道資料！")
+		},
+		"get-twitch-access-token": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			token, err := twitch.GetAccessToken()
+			if err != nil {
+				panic(err)
+			}
+
+			discord.SendResponse(s, i, fmt.Sprintf("Twitch Access Token: %s", token))
+		},
+	}
+	componentsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string){
+		"collab": func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			if !db.Find("Video", "WHERE Id = ?", videoId) {
+				video, err := youtube.GetVideo(videoId)
+				if err != nil {
+					panic(err)
+				}
+
+				err = tools.ImageDownload(video.Thumbnail, "Youtube", tools.UserData[user]["Youtube"]["Id"], "Collab", video.Id)
+				if err != nil {
+					panic(err)
+				}
+
+				discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, tools.UserData[user]["Youtube"]["DiscordChannelId"])
+				db.Insert("Video", video.Map())
+				db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				discord.SendResponse(s, i, "已新增連動影片！")
+			} else {
+				db.Insert("Collab", map[string]any{"VideoId": videoId, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				discord.SendResponse(s, i, "已新增連動資料！")
+			}
+		},
+		"no": func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string) {
+			defer func() {
+				if r := recover(); r != nil {
+					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
+					log.Println("handler panic:", r)
+				}
+			}()
+
+			err := s.ChannelMessageDelete(i.ChannelID, i.Interaction.Message.ID)
+			if err != nil {
+				panic(err)
+			}
+		},
+	}
+)
+
 func main() {
 	initial()
+	getChat("Aqua", "Shion")
 
 	runGo(YoutubeStreamNotify, 30, "Aqua", "Shion")
 	runGo(YoutubeNotify, 300, "Aqua", "Shion")
 	runGo(Collab, 600, "Aqua", "Shion")
 	runGo(TwitchStreamNotify, 60, "Aqua", "Shion")
 	runGo(TwitchNotify, 600, "Aqua", "Shion")
+	runGo(TiktokNotify, 600, "Aqua", "Shion")
 	runGo(News, 600, "Aqua", "Shion")
 
 	select {}
@@ -40,7 +268,7 @@ func YoutubeStreamNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube Live")
 
-	channelId, discordChannelId := userDataMap[name]["Youtube"]["Id"], userDataMap[name]["Youtube"]["DiscordChannelId"]
+	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 
 	channel, err := youtube.GetChannel(channelId)
 	if err != nil {
@@ -66,7 +294,7 @@ func YoutubeStreamNotify(name string) {
 	for i := len(videos) - 1; i >= 0; i-- {
 		videoId := videos[i].Id
 
-		if isContain(videoIds, videoId) {
+		if tools.IsContain(videoIds, videoId) {
 			continue
 		}
 
@@ -88,7 +316,7 @@ func YoutubeStreamNotify(name string) {
 		}
 
 		if video.Live {
-			go LiveChat(video.Id, channel.Title)
+			go LiveChat(video.Id)
 		}
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
@@ -142,7 +370,7 @@ func YoutubeNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube")
 
-	channelId, discordChannelId := userDataMap[name]["Youtube"]["Id"], userDataMap[name]["Youtube"]["DiscordChannelId"]
+	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 
 	channelData := db.FindChannel(channelId)
 	channel, err := youtube.GetChannel(channelId)
@@ -237,7 +465,7 @@ func YoutubeNotify(name string) {
 			}
 
 			for _, comment := range comments {
-				if !isContain(commentIds, comment.Id) {
+				if !tools.IsContain(commentIds, comment.Id) {
 					db.Insert("Comment", comment.Map())
 				}
 			}
@@ -279,7 +507,10 @@ func YoutubeNotify(name string) {
 			}
 
 			if old.Length != new.Length {
-				baseEmbed.New(new.Title, new.Url, "影片長度更新了！", new.Thumbnail).Change(old.Length.String(), new.Length.String()).Send(s, testChannelId)
+				if old.Length == tools.Duration(0) {
+					baseEmbed.New(new.Title, new.Url, "影片長度更新了！", new.Thumbnail).Change(old.Length.String(), new.Length.String()).Send(s, testChannelId)
+				}
+
 				db.Update("Video", new.Id, "Length", new.Length.String())
 			}
 
@@ -322,7 +553,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, video := range videos {
-		if isContain(videoIds, video.Id) {
+		if tools.IsContain(videoIds, video.Id) {
 			baseEmbed.New(video.Title, video.Url, "影片已從公開轉為會員限定了！", video.Thumbnail).Send(s, discordChannelId)
 			db.Update("Video", video.Id, "Member", true)
 		}
@@ -335,7 +566,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, video := range videos {
-		if isContain(videoIds, video.Id) {
+		if tools.IsContain(videoIds, video.Id) {
 			baseEmbed.New(video.Title, video.Url, "影片已從會員限定轉為公開了！", video.Thumbnail).Send(s, discordChannelId)
 			db.Update("Video", video.Id, "Member", false)
 		}
@@ -437,7 +668,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, comment := range comments {
-		if !isContain(commentIds, comment.Id) {
+		if !tools.IsContain(commentIds, comment.Id) {
 			comment = db.CompelteComment(comment)
 			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
 				comment.Author.Title, comment.Author.Url, channel.Title, channel.Url, comment.Video.Title, comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
@@ -450,7 +681,7 @@ func YoutubeNotify(name string) {
 		}
 
 		for _, reply := range replies {
-			if !isContain(replyIds, reply.Id) {
+			if !tools.IsContain(replyIds, reply.Id) {
 				reply = db.CompelteComment(reply)
 				s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
 					reply.Author.Title, reply.Author.Url, channel.Title, channel.Url, reply.Video.Title, reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
@@ -470,7 +701,7 @@ func YoutubeNotify(name string) {
 	}
 
 	for _, post := range posts {
-		if !isContain(postIds, post.Id) {
+		if !tools.IsContain(postIds, post.Id) {
 			var description string
 
 			if post.Member {
@@ -511,7 +742,7 @@ func Collab(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Collab")
 
-	channelId, discordChannelId := userDataMap[name]["Youtube"]["Id"], userDataMap[name]["Youtube"]["DiscordChannelId"]
+	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 
 	oldIds := db.Distinct("collab", channelId)
 	newIds, err := youtube.GetCollab(channelId)
@@ -520,7 +751,7 @@ func Collab(name string) {
 	}
 
 	for _, videoId := range newIds {
-		if isContain(oldIds, videoId) {
+		if tools.IsContain(oldIds, videoId) {
 			continue
 		}
 
@@ -546,13 +777,30 @@ func Collab(name string) {
 	}
 
 	for _, video := range videos {
-		if isContain(collabIds, video.Id) || isContain(oldIds, video.Id) {
+		if tools.IsContain(collabIds, video.Id) || tools.IsContain(oldIds, video.Id) {
 			continue
 		}
 
 		s.ChannelMessageSendComplex(testChannelId, &discordgo.MessageSend{
-			Embed:      (*discordgo.MessageEmbed)(discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video)),
-			Components: getComponent(name, video.Id),
+			Embed: (*discordgo.MessageEmbed)(discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video)),
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.Button{
+							CustomID: fmt.Sprintf("collab:%s:%s", name, video.Id),
+							Label:    "Yes",
+							Emoji:    &discordgo.ComponentEmoji{Name: "✔️"},
+							Style:    discordgo.PrimaryButton,
+						},
+						discordgo.Button{
+							CustomID: "no",
+							Label:    "No",
+							Emoji:    &discordgo.ComponentEmoji{Name: "❌"},
+							Style:    discordgo.PrimaryButton,
+						},
+					},
+				},
+			},
 		})
 
 		collabIds = append(collabIds, video.Id)
@@ -569,7 +817,7 @@ func TwitchStreamNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitch Live")
 
-	userId, discordChannelId := userDataMap[name]["Twitch"]["Id"], userDataMap[name]["Twitch"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
 
 	userData := db.FindTwitchUser(userId)
 	user, err := twitch.GetUser(userId)
@@ -603,7 +851,7 @@ func TwitchNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitch")
 
-	userId, discordChannelId := userDataMap[name]["Twitch"]["Id"], userDataMap[name]["Twitch"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
 
 	userData := db.FindTwitchUser(userId)
 	user, err := twitch.GetUser(userId)
@@ -805,7 +1053,7 @@ func TwitcastingStreamNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitcasting Live")
 
-	userId, discordChannelId := userDataMap[name]["Twitcasting"]["Id"], userDataMap[name]["Twitcasting"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
 	user := db.FindTwitcastingUser(userId)
 
 	live, title, err := twitcasting.GetStream(userId)
@@ -831,7 +1079,7 @@ func TwitcastingNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitcasting")
 
-	userId, discordChannelId := userDataMap[name]["Twitcasting"]["Id"], userDataMap[name]["Twitcasting"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
 
 	userData := db.FindTwitcastingUser(userId)
 	user, err := twitcasting.GetUser(userId)
@@ -842,12 +1090,12 @@ func TwitcastingNotify(name string) {
 	baseEmbed := discord.BaseEmbed("Twitcasting", user.Title, user.Url, user.Icon)
 
 	if userData.Title != user.Title {
-		baseEmbed.New("", "", "頻道名稱更新了！", "").Change(userData.Title, user.Title).Send(s, discordChannelId)
+		baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Title, user.Title).Send(s, discordChannelId)
 		db.Update("TwitcastingUser", userId, "Title", user.Title)
 	}
 
 	if userData.Description != user.Description {
-		baseEmbed.New("", "", "頻道介紹更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
+		baseEmbed.New("", "", "用戶介紹更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
 		db.Update("TwitcastingUser", userId, "Description", user.Description)
 	}
 
@@ -857,7 +1105,65 @@ func TwitcastingNotify(name string) {
 			panic(err)
 		}
 
-		baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
+		baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
+	} else if err != nil {
+		panic(err)
+	}
+}
+
+func TiktokNotify(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Tiktok", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tiktok")
+
+	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], tools.UserData[name]["Tiktok"]["DiscordChannelId"]
+
+	user, err := tiktok.GetUser(userUniqueId)
+	if err != nil {
+		panic(err)
+	}
+
+	if !db.Find("TiktokUser", "WHERE Id = ?", user.Id) {
+		s.ChannelMessageSend(testChannelId, fmt.Sprintf("%s 的 Tiktok UniqueId 可能有變更！", name))
+		return
+	}
+
+	userData := db.FindTiktokUser(user.Id)
+
+	baseEmbed := discord.BaseEmbed("Tiktok", user.Title, user.Url, user.Icon)
+
+	if userData.Title != user.Title {
+		baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Title, user.Title).Send(s, discordChannelId)
+		db.Update("TiktokUser", user.Id, "Title", user.Title)
+	}
+
+	if userData.ShortId != user.ShortId {
+		baseEmbed.New("", "", "用戶短ID更新了！", "").Change(userData.ShortId, user.ShortId).Send(s, discordChannelId)
+		db.Update("TiktokUser", user.Id, "ShortId", user.ShortId)
+	}
+
+	if userData.UniqueId != user.UniqueId {
+		baseEmbed.New("", "", "用戶唯一用戶名更新了！", "").Change(userData.UniqueId, user.UniqueId).Send(s, discordChannelId)
+		db.Update("TiktokUser", user.Id, "UniqueId", user.UniqueId)
+	}
+
+	if userData.Description != user.Description {
+		baseEmbed.New("", "", "用戶介紹更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
+		db.Update("TiktokUser", user.Id, "Description", user.Description)
+	}
+
+	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
+		err = tools.ImageDownload(user.Icon, "Tiktok", user.Id, "Icon", user.Id)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
 	} else if err != nil {
 		panic(err)
 	}
@@ -873,7 +1179,7 @@ func FanboxNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Fanbox")
 
-	userId, discordChannelId := userDataMap[name]["Fanbox"]["Id"], userDataMap[name]["Fanbox"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Fanbox"]["Id"], tools.UserData[name]["Fanbox"]["DiscordChannelId"]
 
 	userData := db.FindFanboxUser(userId)
 	user, err := fanbox.GetUser(userId)
@@ -931,7 +1237,7 @@ func News(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "News")
 
-	userId, discordChannelId := userDataMap[name]["News"]["Id"], userDataMap[name]["News"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["News"]["Id"], tools.UserData[name]["News"]["DiscordChannelId"]
 
 	newsList, err := tools.GetNews(userId)
 	if err != nil {
@@ -1011,5 +1317,17 @@ func runGo(f func(string), interval int, names ...string) {
 				f(name)
 			}
 		}(name)
+	}
+}
+
+func getChat(names ...string) {
+	for _, name := range names {
+		for _, videoId := range db.Distinct("livestream", tools.UserData[name]["Youtube"]["Id"]) {
+			if videoId == "G22WPiRfTws" {
+				continue
+			}
+
+			go LiveChat(videoId)
+		}
 	}
 }
