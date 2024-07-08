@@ -178,12 +178,13 @@ func (embed *Embed) addField(name, value string) {
 		Value:  trimString(value),
 		Inline: true,
 	}
+
 	embed.Fields = append(embed.Fields, &field)
 }
 
 func trimString(s string) string {
 	if len(s) > 750 {
-		return s[:750] + "..."
+		return fmt.Sprintf("%s...", s[:750])
 	}
 
 	return s

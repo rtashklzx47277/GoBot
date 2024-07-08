@@ -17,12 +17,12 @@ type MySQL struct {
 func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, error) {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, host, port, dbName))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting to MySQL: %v", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("database has no response: %v", err)
 	}
 
 	return &MySQL{db}, nil

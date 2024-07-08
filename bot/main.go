@@ -507,7 +507,7 @@ func YoutubeNotify(name string) {
 			}
 
 			if old.Length != new.Length {
-				if old.Length == tools.Duration(0) {
+				if old.Length != tools.Duration(0) {
 					baseEmbed.New(new.Title, new.Url, "影片長度更新了！", new.Thumbnail).Change(old.Length.String(), new.Length.String()).Send(s, testChannelId)
 				}
 

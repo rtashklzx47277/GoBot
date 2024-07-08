@@ -31,11 +31,15 @@ func getData(path string) (*tools.Json, error) {
 		return &tools.Json{}, err
 	}
 
-	data := tools.Regexp(string(body), `"user":(.*),"stats"`, 1)[0][1]
+	match := tools.Regexp(string(body), `"user":(.*),"stats"`, 1)
+
+	if len(match) == 0 {
+		return &tools.Json{}, err
+	}
 
 	var jsonData tools.Json
 
-	err = json.Unmarshal([]byte(data), &jsonData.Data)
+	err = json.Unmarshal([]byte(match[0][1]), &jsonData.Data)
 	if err != nil {
 		return &tools.Json{}, err
 	}

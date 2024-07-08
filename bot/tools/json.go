@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -16,9 +17,8 @@ func ToJson(data io.Reader) (*Json, error) {
 	var js Json
 
 	err := json.NewDecoder(data).Decode(&js.Data)
-
 	if err != nil {
-		return &Json{}, err
+		return &Json{}, fmt.Errorf("failed to decode JSON data: %w", err)
 	}
 
 	return &js, nil
