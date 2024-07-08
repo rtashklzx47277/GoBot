@@ -113,7 +113,7 @@ func getParameters(videoId string) (string, string, string, error) {
 }
 
 func getChannelTitle(body []byte) (string, error) {
-	match := tools.Regexp(string(body), `{"authorName":{"simpleText":"(.*)"}`, 1)
+	match := tools.Regexp(string(body), `{"authorName":{"simpleText":"(.+?)"}`, 1)
 
 	if len(match) == 0 {
 		return "", errors.New("fail to get channel title")
