@@ -256,6 +256,8 @@ func main() {
 	runGo(News, 600, "Aqua", "Shion")
 
 	select {}
+
+	// LiveChatOriginal("aUZcgG-x3hY")
 }
 
 func YoutubeStreamNotify(name string) {
@@ -316,7 +318,7 @@ func YoutubeStreamNotify(name string) {
 		}
 
 		if video.Live {
-			go LiveChat(video.Id)
+			go LiveChat(video.Id, discordChannelId)
 		}
 
 		baseEmbed.NewNotify(status, video).Send(s, discordChannelId)
@@ -1327,7 +1329,7 @@ func getChat(names ...string) {
 				continue
 			}
 
-			go LiveChat(videoId)
+			go LiveChat(videoId, tools.UserData[name]["Youtube"]["DiscordChannelId"])
 		}
 	}
 }

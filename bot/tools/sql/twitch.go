@@ -16,7 +16,7 @@ func (mySQL *MySQL) FindTwitchUser(userId string) twitch.User {
 		&user.EmoteMode, &user.SubscriberMode, &user.UniqueMode,
 		&user.FollowMode, &followTime, &user.SlowMode, &slowTime, &user.Live)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	user.LoginId = handleNullString(loginId)
@@ -38,7 +38,7 @@ func (mySQL *MySQL) FindTwitchSchedules(userId string) []twitch.Schedule {
 	query := "SELECT ScheduledTime FROM TwitchSchedule WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -50,7 +50,7 @@ func (mySQL *MySQL) FindTwitchSchedules(userId string) []twitch.Schedule {
 
 		err := rows.Scan(&scheduledTime)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		schedule.UserId = userId
@@ -66,7 +66,7 @@ func (mySQL *MySQL) FindTwitchBadges(userId string) []twitch.Badge {
 	query := "SELECT Id, SetId, Title, Description FROM TwitchBadge WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -78,7 +78,7 @@ func (mySQL *MySQL) FindTwitchBadges(userId string) []twitch.Badge {
 
 		err := rows.Scan(&badge.Id, &setId, &title, &description)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		badge.SetId = handleNullString(setId)
@@ -97,7 +97,7 @@ func (mySQL *MySQL) FindTwitchStamps(userId string) []twitch.Stamp {
 	query := "SELECT Id, Title, Tier, Type, Format FROM TwitchStamp WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -109,7 +109,7 @@ func (mySQL *MySQL) FindTwitchStamps(userId string) []twitch.Stamp {
 
 		err := rows.Scan(&stamp.Id, &title, &tier, &typeName, &format)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		stamp.Title = handleNullString(title)

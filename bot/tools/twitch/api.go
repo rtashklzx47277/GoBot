@@ -3,10 +3,7 @@ package twitch
 import (
 	"GoBot/tools"
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 )
@@ -18,27 +15,14 @@ var (
 )
 
 func getData(path string) (*tools.Json, error) {
-	req, err := http.NewRequest("GET", path, nil)
+	reader, err := tools.Get(path).
+		AddHeader("Client-Id", clientId).
+		AddHeader("Authorization", fmt.Sprintf("Bearer %s", accessToken)).Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
 
-	req.Header.Set("Client-Id", clientId)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &tools.Json{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	data, err := tools.ToJson(resp.Body)
+	data, err := tools.ToJson(reader)
 	if err != nil {
 		return &tools.Json{}, err
 	}
@@ -50,7 +34,7 @@ func GetUser(userId string) (User, error) {
 	url := fmt.Sprintf("https://api.twitch.tv/helix/users?id=%s", userId)
 	data, err := getData(url)
 	if err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
 	item := data.Get("data").Index(0)
@@ -72,7 +56,7 @@ func GetUser(userId string) (User, error) {
 	url = fmt.Sprintf("https://api.twitch.tv/helix/channels?broadcaster_id=%s", userId)
 	data, err = getData(url)
 	if err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get channel data!\n%w", err)
 	}
 
 	user.ChannelTitle = data.Get("data").Index(0).Get("title").String()
@@ -80,7 +64,7 @@ func GetUser(userId string) (User, error) {
 	url = fmt.Sprintf("https://api.twitch.tv/helix/chat/color?user_id=%s", userId)
 	data, err = getData(url)
 	if err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get chat color!\n%w", err)
 	}
 
 	user.Color = data.Get("data").Index(0).Get("color").String()
@@ -88,7 +72,7 @@ func GetUser(userId string) (User, error) {
 	url = fmt.Sprintf("https://api.twitch.tv/helix/chat/settings?broadcaster_id=%s", userId)
 	data, err = getData(url)
 	if err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get chat setting!\n%w", err)
 	}
 
 	item = data.Get("data").Index(0)
@@ -233,24 +217,13 @@ func GetAccessToken() (string, error) {
 	body.Set("client_secret", clientSecret)
 	body.Set("grant_type", "client_credentials")
 
-	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", bytes.NewBufferString(body.Encode()))
+	reader, err := tools.Post("https://id.twitch.tv/oauth2/token", bytes.NewBufferString(body.Encode())).
+		AddHeader("Content-Type", "application/x-www-form-urlencoded").Do()
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.New("HTTP request failed with status code other than 200")
-	}
-
-	data, err := tools.ToJson(resp.Body)
+	data, err := tools.ToJson(reader)
 	if err != nil {
 		return "", err
 	}

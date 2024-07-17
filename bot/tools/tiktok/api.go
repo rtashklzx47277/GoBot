@@ -4,44 +4,26 @@ import (
 	"GoBot/tools"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 )
 
 func getData(path string) (*tools.Json, error) {
-	req, err := http.NewRequest("GET", path, nil)
+	reader, err := tools.Get(path).Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
+	data, err := tools.ToString(reader)
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &tools.Json{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-
-	match := tools.Regexp(string(body), `"user":(.*),"stats"`, 1)
-
+	match := tools.Regexp(data, `"user":(.*),"stats"`, 1)
 	if len(match) == 0 {
-		return &tools.Json{}, err
+		return &tools.Json{}, fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
 	var jsonData tools.Json
 
 	err = json.Unmarshal([]byte(match[0][1]), &jsonData.Data)
 	if err != nil {
-		return &tools.Json{}, err
+		return &tools.Json{}, fmt.Errorf("failed to unmarshal JSON data!\n%w", err)
 	}
 
 	return &jsonData, nil

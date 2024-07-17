@@ -17,12 +17,12 @@ type MySQL struct {
 func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, error) {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, host, port, dbName))
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to MySQL: %v", err)
+		return nil, fmt.Errorf("error connecting to MySQL!\n%v", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("database has no response: %v", err)
+		return nil, fmt.Errorf("database has no response!\n%v", err)
 	}
 
 	return &MySQL{db}, nil
@@ -47,7 +47,7 @@ func (mySQL *MySQL) Insert(table string, data map[string]any) {
 
 	_, err := mySQL.db.Exec(query, values...)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to insert data!\n%v", err))
 	}
 }
 
@@ -55,7 +55,7 @@ func (mySQL *MySQL) Delete(table string, filter string, values ...any) {
 	query := fmt.Sprintf("DELETE FROM %s %s", table, filter)
 	_, err := mySQL.db.Exec(query, values...)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to delete data!\n%v", err))
 	}
 }
 
@@ -71,7 +71,7 @@ func (mySQL *MySQL) Update(table, Id string, colAndVal ...any) {
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE Id = \"%s\"", table, strings.Join(colArray, ", "), Id)
 	_, err := mySQL.db.Exec(query, valArray...)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to update data!\n%v", err))
 	}
 }
 
@@ -81,7 +81,7 @@ func (mySQL *MySQL) Find(table, filter string, values ...any) bool {
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", table, filter)
 	err := mySQL.db.QueryRow(query, values...).Scan(&count)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	return count != 0

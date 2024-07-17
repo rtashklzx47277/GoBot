@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"io"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -49,29 +48,29 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 func ImageUpload(imagePath string) (string, error) {
 	pic, err := os.ReadFile(imagePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read file!\n%w", err)
 	}
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("image", imagePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create form file!\n%w", err)
 	}
 
 	_, err = part.Write(pic)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to write image data to form file!\n%w", err)
 	}
 
 	err = writer.WriteField("type", "file")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to write field 'type'!\n%w", err)
 	}
 
 	err = writer.WriteField("album", albumId)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to write field 'album'!\n%w", err)
 	}
 
 	err = writer.Close()
@@ -79,52 +78,36 @@ func ImageUpload(imagePath string) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", "https://api.imgur.com/3/image", body)
+	reader, err := Post("https://api.imgur.com/3/image", body).
+		AddHeader("Authorization", fmt.Sprintf("Bearer %s", imgurToken)).
+		AddHeader("Content-Type", writer.FormDataContentType()).Do()
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", imgurToken))
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return "", fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	data, err := ToJson(resp.Body)
+	data, err := ToJson(reader)
 	if err != nil {
 		return "", err
 	}
 
-	imageUrl := fmt.Sprintf("https://imgur.com/%s.png", data.Get("data").Get("id").String())
-
-	return imageUrl, nil
+	return fmt.Sprintf("https://imgur.com/%s.png", data.Get("data").Get("id").String()), nil
 }
 
 func ImageDownload(imageUrl string, filePath ...string) error {
-	resp, err := http.Get(imageUrl)
+	reader, err := Get(imageUrl).Do()
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	file, err := os.Create(fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/")))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file!\n%w", err)
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	_, err = io.Copy(file, reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to copy data from reader to file!\n%w", err)
 	}
 
 	return nil
@@ -133,46 +116,8 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 func ImageRemove(imagePath string) {
 	err := os.Remove(imagePath)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("failed to remove file!\n%w", err)
 	}
-}
-
-func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
-	var picture image.Image
-	var reader io.Reader
-	var err error
-
-	switch uploadFrom {
-	case "file":
-		file, err := os.Open(imagePath)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		reader = file
-	case "url":
-		resp, err := http.Get(imagePath)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-
-			return nil, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-		}
-
-		reader = resp.Body
-	}
-
-	picture, _, err = image.Decode(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	return picture, err
 }
 
 func imageChange(old, new image.Image) (string, error) {
@@ -200,13 +145,13 @@ func imageChange(old, new image.Image) (string, error) {
 	outputPath := "/bot/media/change.jpg"
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create file!\n%w", err)
 	}
 	defer outputFile.Close()
 
 	err = jpeg.Encode(outputFile, canvas, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to encode JPEG image!\n%w", err)
 	}
 
 	link, err := ImageUpload(outputPath)
@@ -215,6 +160,35 @@ func imageChange(old, new image.Image) (string, error) {
 	}
 
 	return link, nil
+}
+
+func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
+	var reader io.ReadCloser
+
+	switch uploadFrom {
+	case "file":
+		file, err := os.Open(imagePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open file!\n%w", err)
+		}
+		defer file.Close()
+
+		reader = file
+	case "url":
+		bytes, err := Get(imagePath).Do()
+		if err != nil {
+			return nil, err
+		}
+
+		reader = bytes
+	}
+
+	pic, err := ToImage(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return pic, err
 }
 
 func checkPixel(old, new image.Image) int {

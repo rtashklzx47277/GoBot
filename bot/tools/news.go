@@ -2,8 +2,6 @@ package tools
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -24,19 +22,19 @@ func GetNews(keyword string) ([]News, error) {
 
 	news, err := getPrtimes(keyword)
 	if err != nil {
-		return []News{}, fmt.Errorf("error occurred while getting Prtimes data: %v", err)
+		return []News{}, fmt.Errorf("failed to get Prtimes data!\n%v", err)
 	}
 	newsList = append(newsList, news...)
 
 	news, err = getPanora(keyword)
 	if err != nil {
-		return []News{}, fmt.Errorf("error occurred while getting Panora data: %v", err)
+		return []News{}, fmt.Errorf("failed to get Panora data!\n%v", err)
 	}
 	newsList = append(newsList, news...)
 
 	news, err = getRealsound(keyword)
 	if err != nil {
-		return []News{}, fmt.Errorf("error occurred while getting Realsound data: %v", err)
+		return []News{}, fmt.Errorf("failed to get Realsound data!\n%v", err)
 	}
 
 	newsList = append(newsList, news...)
@@ -181,24 +179,12 @@ func getRealsound(keyword string) ([]News, error) {
 }
 
 func getDoc(url string) (*goquery.Document, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	reader, err := Get(url).Do()
 	if err != nil {
 		return &goquery.Document{}, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return &goquery.Document{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &goquery.Document{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := ToDocument(reader)
 	if err != nil {
 		return &goquery.Document{}, err
 	}
@@ -207,9 +193,7 @@ func getDoc(url string) (*goquery.Document, error) {
 }
 
 func stringToTime(s, d string) Time {
-	var t time.Time
 	var layout string
-	var err error
 
 	if d == "realsound" {
 		layout = "2006-01-02T15:04"
@@ -217,7 +201,7 @@ func stringToTime(s, d string) Time {
 		layout = "2006-01-02T15:04:05-0700"
 	}
 
-	t, err = time.Parse(layout, s)
+	t, err := time.Parse(layout, s)
 	if err != nil {
 		return Time{}
 	}

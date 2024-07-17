@@ -4,8 +4,6 @@ import (
 	"GoBot/tools"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -18,36 +16,26 @@ var (
 
 func GetCommunity(channelId string) ([]Post, error) {
 	url := fmt.Sprintf("https://www.youtube.com/channel/%s/community", channelId)
-	req, err := http.NewRequest("GET", url, nil)
+	reader, err := tools.Get(url).AddCookie("__Secure-3PSID", secure_3PSID).AddCookie("__Secure-3PSIDTS", secure_3PSIDTS).Do()
 	if err != nil {
-		return []Post{}, fmt.Errorf("error occurred at line 21: %v", err)
-	}
-
-	req.AddCookie(&http.Cookie{Name: "__Secure-3PSID", Value: secure_3PSID})
-	req.AddCookie(&http.Cookie{Name: "__Secure-3PSIDTS", Value: secure_3PSIDTS})
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return []Post{}, fmt.Errorf("error occurred at line 29: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
 		return []Post{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	data, err := tools.ToString(reader)
 	if err != nil {
-		return []Post{}, fmt.Errorf("error occurred at line 39: %v", err)
+		return []Post{}, err
 	}
 
-	data := tools.Regexp(string(body), `ytInitialData = (.+?);\s*<\/script>`, 1)[0][1]
+	match := tools.Regexp(data, `ytInitialData = (.+?);\s*<\/script>`, 1)
+	if len(match) == 0 {
+		return []Post{}, fmt.Errorf("failed to get ytInitialData!\n%w", err)
+	}
 
 	var jsonData tools.Json
 
-	err = json.Unmarshal([]byte(data), &jsonData.Data)
+	err = json.Unmarshal([]byte(match[0][1]), &jsonData.Data)
 	if err != nil {
-		return []Post{}, fmt.Errorf("error occurred at line 48: %v", err)
+		return []Post{}, fmt.Errorf("failed to unmarshal JSON data!\n%w", err)
 	}
 
 	var posts []Post

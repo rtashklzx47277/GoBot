@@ -13,7 +13,7 @@ func (mySQL *MySQL) FindTiktokUser(userId string) tiktok.User {
 	query := "SELECT * FROM TiktokUser WHERE Id = ?"
 	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &shortId, &uniqueId, &title, &description)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	user.ShortId = handleNullString(shortId)

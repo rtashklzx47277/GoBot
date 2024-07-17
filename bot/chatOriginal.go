@@ -13,7 +13,7 @@ import (
 
 var messageIds = []string{}
 
-func LiveChatbyOriginal(videoId string) {
+func LiveChatOriginal(videoId string) {
 	_, apiKey, continuation, err := getParameters(videoId)
 	if err != nil {
 		return

@@ -3,31 +3,15 @@ package fanbox
 import (
 	"GoBot/tools"
 	"fmt"
-	"io"
-	"net/http"
 )
 
 func getData(path string) (*tools.Json, error) {
-	req, err := http.NewRequest("GET", path, nil)
+	reader, err := tools.Get(path).AddHeader("origin", "https://www.fanbox.cc").Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
 
-	req.Header.Set("origin", "https://www.fanbox.cc")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &tools.Json{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	data, err := tools.ToJson(resp.Body)
+	data, err := tools.ToJson(reader)
 	if err != nil {
 		return &tools.Json{}, err
 	}

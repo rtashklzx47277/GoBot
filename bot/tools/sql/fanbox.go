@@ -13,7 +13,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	query := "SELECT * FROM FanboxUser WHERE Id = ?"
 	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &creatorId, &name, &description)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	user.CreatorId = handleNullString(creatorId)

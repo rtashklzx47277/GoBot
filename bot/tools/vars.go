@@ -1,8 +1,9 @@
 package tools
 
 var (
-	UserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
-	DefaultImage = "https://imgur.com/2wAkxNb.png"
+	UserAgent     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
+	ClientVersion = "2.20240620.05.00"
+	DefaultImage  = "https://imgur.com/2wAkxNb.png"
 
 	ChannelList = map[string]string{
 		"UCJFZiqLMntJufDCHc6bQixg": "ホロライブ",

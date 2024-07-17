@@ -2,8 +2,6 @@ package tools
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -11,17 +9,6 @@ import (
 
 type Json struct {
 	Data any `json:"data"`
-}
-
-func ToJson(data io.Reader) (*Json, error) {
-	var js Json
-
-	err := json.NewDecoder(data).Decode(&js.Data)
-	if err != nil {
-		return &Json{}, fmt.Errorf("failed to decode JSON data: %w", err)
-	}
-
-	return &js, nil
 }
 
 func (js *Json) Get(key string) *Json {

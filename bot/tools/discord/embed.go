@@ -124,6 +124,19 @@ func (embed *Embed) NewNotify(status string, video youtube.Video) *Embed {
 		}
 
 		embed = embed.New(video.Title, video.Url, description, video.Thumbnail)
+	} else if video.LiveStatus == 0 {
+		var description string
+
+		switch status {
+		case "":
+			description = "有新的直播！"
+		case "member":
+			description = "有新的會員限定直播！"
+		case "collab":
+			description = "有新的連動直播！"
+		}
+
+		embed = embed.New(video.Title, video.Url, description, video.Thumbnail).EndTime(video.EndTime, video.Length)
 	} else if video.LiveStatus == 1 {
 		var description string
 

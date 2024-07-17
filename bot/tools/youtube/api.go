@@ -4,8 +4,6 @@ import (
 	"GoBot/tools"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -24,28 +22,14 @@ var apiKeyList = map[int]string{
 
 func getData(path string) (*tools.Json, error) {
 	url := fmt.Sprintf("https://www.googleapis.com/youtube/v3/%s&key=%s", path, apiKeyList[time.Now().Hour()/3+1])
-
-	req, err := http.NewRequest("GET", url, nil)
+	reader, err := tools.Get(url).Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	data, err := tools.ToJson(reader)
 	if err != nil {
 		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
-
-	data, err := tools.ToJson(resp.Body)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &tools.Json{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
 	}
 
 	return data, nil

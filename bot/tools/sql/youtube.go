@@ -14,7 +14,7 @@ func (mySQL *MySQL) FindChannel(channelId string) youtube.Channel {
 	query := "SELECT Id, CustomId, Title, Description, SubscriberCount, ViewCount FROM Channel WHERE Id = ?"
 	err := mySQL.db.QueryRow(query, channelId).Scan(&channel.Id, &customId, &title, &description, &subscriberCount, &viewCount)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	channel.CustomId = handleNullString(customId)
@@ -34,7 +34,7 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 	query := "SELECT Id, Title, Description, Length, ViewCount, LiveStatus, PublishedTime, Comment, Private, Music FROM Video WHERE ChannelId = ?"
 	rows, err := mySQL.db.Query(query, channelId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -47,7 +47,7 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 
 		err := rows.Scan(&video.Id, &title, &description, &length, &viewCount, &liveStatus, &publishedTime, &video.Comment, &video.Private, &video.Music)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		video.Title = handleNullString(title)
@@ -71,7 +71,7 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 		"WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND LiveStatus <> ? AND Private = ?"
 	rows, err := mySQL.db.Query(query, channelId, channelId, 0, 0)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -84,7 +84,7 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 
 		err := rows.Scan(&livestream.Id, &livestream.Author.Id, &title, &liveStatus, &scheduledTime)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		livestream.Title = handleNullString(title)
@@ -111,7 +111,7 @@ func (mySQL *MySQL) FindPlaylists(channelId string) []youtube.Playlist {
 	query := "SELECT Id, Title, Description FROM Playlist WHERE channelId = ?"
 	rows, err := mySQL.db.Query(query, channelId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -123,7 +123,7 @@ func (mySQL *MySQL) FindPlaylists(channelId string) []youtube.Playlist {
 
 		err := rows.Scan(&playlist.Id, &title, &description)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		playlist.Title = handleNullString(title)
@@ -142,7 +142,7 @@ func (mySQL *MySQL) FindPlaylistItems(playlistId string) []youtube.Video {
 	query := "SELECT Id, ChannelId, Title FROM Video RIGHT JOIN PlaylistItem ON PlaylistItem.VideoId = Video.Id WHERE PlaylistItem.PlaylistId = ?"
 	rows, err := mySQL.db.Query(query, playlistId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -154,7 +154,7 @@ func (mySQL *MySQL) FindPlaylistItems(playlistId string) []youtube.Video {
 
 		err := rows.Scan(&playlistItem.Id, &playlistItem.Author.Id, &title)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		playlistItem.Title = handleNullString(title)
@@ -177,7 +177,7 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 		"WHERE c2.Id = ?"
 	rows, err := mySQL.db.Query(query, channelId)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -190,7 +190,7 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 		err := rows.Scan(&comment.Id, &parentId, &text, &publishedTime, &updatedTime,
 			&comment.Author.Id, &authorChannelTitle, &comment.Video.Id, &videoTitle, &comment.Canceled)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		comment.ParentId = handleNullString(parentId)
@@ -207,38 +207,6 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 	}
 
 	return comments
-}
-
-func (mySQL *MySQL) FindMusic(channelId string) []youtube.Video {
-	query := "SELECT Id, Title, ViewCount FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId WHERE Video.Music = ? AND Video.Private = ? AND (Video.ChannelId = ? OR Collab.ChannelId = ?)"
-	rows, err := mySQL.db.Query(query, 1, 0, channelId, channelId)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer rows.Close()
-
-	var videos []youtube.Video
-
-	for rows.Next() {
-		var video youtube.Video
-		var title sql.NullString
-		var viewCount sql.NullInt64
-
-		err := rows.Scan(&video.Id, &title, &viewCount)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		video.Title = handleNullString(title)
-		video.ViewCount = handleNullInt(viewCount)
-
-		video.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", channelId, video.Id)
-		video.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", video.Id)
-
-		videos = append(videos, video)
-	}
-
-	return videos
 }
 
 func (mySQL *MySQL) Distinct(target, id string) []string {
@@ -280,7 +248,7 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 
 	rows, err := mySQL.db.Query(query, values...)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
@@ -291,7 +259,7 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 
 		err := rows.Scan(&value)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 		result = append(result, value)
 	}
@@ -307,7 +275,7 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 
 		err := mySQL.db.QueryRow(query, comment.Id).Scan(&videoId)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
 
 		comment.Video.Id = handleNullString(videoId)
@@ -320,7 +288,7 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 
 	err := mySQL.db.QueryRow(query, comment.Id).Scan(&authorTitle, &videoTitle)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
 	comment.Author.Title = handleNullString(authorTitle)

@@ -3,36 +3,21 @@ package twitcasting
 import (
 	"GoBot/tools"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 )
 
 var accessToken = os.Getenv("TWITCASTING_ACCESS_TOKEN")
 
 func getData(path string) (*tools.Json, error) {
-	req, err := http.NewRequest("GET", path, nil)
+	reader, err := tools.Get(path).
+		AddHeader("Accept", "application/json").
+		AddHeader("X-Api-Version", "2.0").
+		AddHeader("Authorization", fmt.Sprintf("Bearer %s", accessToken)).Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
 
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Api-Version", "2.0")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return &tools.Json{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	data, err := tools.ToJson(resp.Body)
+	data, err := tools.ToJson(reader)
 	if err != nil {
 		return &tools.Json{}, err
 	}

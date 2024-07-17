@@ -2,9 +2,6 @@ package youtube
 
 import (
 	"GoBot/tools"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,28 +11,12 @@ func GetSchedule(name string) ([]Video, error) {
 	var videoIdList []string
 	var streams []Video
 
-	url := "https://schedule.hololive.tv/lives/hololive"
-	req, err := http.NewRequest("GET", url, nil)
+	reader, err := tools.Get("https://schedule.hololive.tv/lives/hololive").AddCookie("timezone", "Asia/Tokyo").Do()
 	if err != nil {
 		return []Video{}, err
 	}
 
-	cookie := http.Cookie{Name: "timezone", Value: "Asia/Tokyo"}
-	req.AddCookie(&cookie)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return []Video{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return []Video{}, fmt.Errorf("HTTP request failed with status code: %d\n%s", resp.StatusCode, string(body))
-	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := tools.ToDocument(reader)
 	if err != nil {
 		return []Video{}, err
 	}
