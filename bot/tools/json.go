@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -9,6 +10,17 @@ import (
 
 type Json struct {
 	Data any `json:"data"`
+}
+
+func StringToJson(data string) (*Json, error) {
+	var jsonData Json
+
+	err := json.Unmarshal([]byte(data), &jsonData.Data)
+	if err != nil {
+		return &Json{}, fmt.Errorf("failed to unmarshal JSON data!\n%w", err)
+	}
+
+	return &jsonData, nil
 }
 
 func (js *Json) Get(key string) *Json {

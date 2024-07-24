@@ -257,6 +257,7 @@ func main() {
 
 	select {}
 
+	// youtube.GetMemberShip("UC1opHUrw8rvnsadT-iGp7Cg")
 	// LiveChatOriginal("aUZcgG-x3hY")
 }
 

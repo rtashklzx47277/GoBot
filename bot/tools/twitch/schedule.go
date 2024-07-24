@@ -52,7 +52,7 @@ func GetHoloSchedule(name string) ([]Schedule, error) {
 
 	doc.Find(".col-6.col-sm-4.col-md-3>a, .holodule.navbar-text").Each(func(i int, s *goquery.Selection) {
 		if s.HasClass("holodule") {
-			date = tools.Regexp(s.Text(), `(\d{2}/\d{2})`, 1)[0][1]
+			date, _ = tools.Regexp(s.Text(), `(\d{2}/\d{2})`)
 		} else {
 			href, _ := s.Attr("href")
 
@@ -71,7 +71,8 @@ func GetHoloSchedule(name string) ([]Schedule, error) {
 func getScheduledTime(d, t string) tools.Time {
 	location, _ := time.LoadLocation("Asia/Tokyo")
 	year := time.Now().UTC().In(location).Year()
-	scheduledTime, _ := time.ParseInLocation("2006/01/02 15:04", fmt.Sprintf("%d/%s %s", year, d, tools.Regexp(t, `(\d{2}:\d{2})`, 1)[0][1]), location)
+	timeString, _ := tools.Regexp(t, `(\d{2}:\d{2})`)
+	scheduledTime, _ := time.ParseInLocation("2006/01/02 15:04", fmt.Sprintf("%d/%s %s", year, d, timeString), location)
 
 	return tools.Time(scheduledTime.UTC())
 }

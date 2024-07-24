@@ -63,14 +63,14 @@ func ToString(reader io.ReadCloser) (string, error) {
 func ToJson(reader io.ReadCloser) (*Json, error) {
 	defer reader.Close()
 
-	var js Json
+	var jsonData Json
 
-	err := json.NewDecoder(reader).Decode(&js.Data)
+	err := json.NewDecoder(reader).Decode(&jsonData.Data)
 	if err != nil {
 		return &Json{}, fmt.Errorf("failed to parse into JSON!\n%w", err)
 	}
 
-	return &js, nil
+	return &jsonData, nil
 }
 
 func ToDocument(reader io.ReadCloser) (*goquery.Document, error) {

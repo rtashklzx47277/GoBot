@@ -78,23 +78,20 @@ func getParameters(videoId string) (string, string, string, error) {
 		return "", "", "", err
 	}
 
-	match := tools.Regexp(data, `{"authorName":{"simpleText":"(.+?)"}`, 1)
-	if len(match) == 0 {
+	channelTitle, ok := tools.Regexp(data, `{"authorName":{"simpleText":"(.+?)"}`)
+	if !ok {
 		return "", "", "", fmt.Errorf("failed to get channel title!\n%w", err)
 	}
-	channelTitle := match[0][1]
 
-	match = tools.Regexp(data, `"INNERTUBE_API_KEY":"([A-z0-9-]*)`, 1)
-	if len(match) == 0 {
+	apiKey, ok := tools.Regexp(data, `"INNERTUBE_API_KEY":"([A-z0-9-]*)`)
+	if !ok {
 		return "", "", "", fmt.Errorf("failed to get apiKey!\n%w", err)
 	}
-	apiKey := match[0][1]
 
-	match = tools.Regexp(data, `"continuation":"([A-z0-9-%]*)`, -1)
-	if len(match) == 0 {
+	continuation, ok := tools.Regexp(data, `"continuation":"([A-z0-9-%]*)`)
+	if !ok {
 		return "", "", "", fmt.Errorf("failed to get continuation!\n%w", err)
 	}
-	continuation := match[0][1]
 
 	return channelTitle, apiKey, continuation, nil
 }

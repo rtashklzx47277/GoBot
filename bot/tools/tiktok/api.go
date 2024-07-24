@@ -2,7 +2,6 @@ package tiktok
 
 import (
 	"GoBot/tools"
-	"encoding/json"
 	"fmt"
 )
 
@@ -14,19 +13,17 @@ func getData(path string) (*tools.Json, error) {
 
 	data, err := tools.ToString(reader)
 
-	match := tools.Regexp(data, `"user":(.*),"stats"`, 1)
-	if len(match) == 0 {
+	match, ok := tools.Regexp(data, `"user":(.*),"stats"`)
+	if !ok {
 		return &tools.Json{}, fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
-	var jsonData tools.Json
-
-	err = json.Unmarshal([]byte(match[0][1]), &jsonData.Data)
+	jsonData, err := tools.StringToJson(match)
 	if err != nil {
-		return &tools.Json{}, fmt.Errorf("failed to unmarshal JSON data!\n%w", err)
+		return &tools.Json{}, err
 	}
 
-	return &jsonData, nil
+	return jsonData, nil
 }
 
 func GetUser(userId string) (User, error) {

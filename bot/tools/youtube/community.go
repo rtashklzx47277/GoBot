@@ -2,7 +2,6 @@ package youtube
 
 import (
 	"GoBot/tools"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -26,16 +25,14 @@ func GetCommunity(channelId string) ([]Post, error) {
 		return []Post{}, err
 	}
 
-	match := tools.Regexp(data, `ytInitialData = (.+?);\s*<\/script>`, 1)
-	if len(match) == 0 {
+	match, ok := tools.Regexp(data, `ytInitialData = (.+?);\s*<\/script>`)
+	if !ok {
 		return []Post{}, fmt.Errorf("failed to get ytInitialData!\n%w", err)
 	}
 
-	var jsonData tools.Json
-
-	err = json.Unmarshal([]byte(match[0][1]), &jsonData.Data)
+	jsonData, err := tools.StringToJson(match)
 	if err != nil {
-		return []Post{}, fmt.Errorf("failed to unmarshal JSON data!\n%w", err)
+		return []Post{}, err
 	}
 
 	var posts []Post

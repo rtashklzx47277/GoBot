@@ -2,8 +2,14 @@ package tools
 
 import "regexp"
 
-func Regexp(str, substr string, n int) [][]string {
-	return regexp.MustCompile(substr).FindAllStringSubmatch(str, n)
+func Regexp(str, substr string) (string, bool) {
+	match := regexp.MustCompile(substr).FindAllStringSubmatch(str, 1)
+
+	if len(match) == 0 {
+		return "", false
+	}
+
+	return match[0][1], true
 }
 
 func IsContain(list []string, target string) bool {
