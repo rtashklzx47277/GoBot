@@ -255,10 +255,10 @@ func main() {
 	runGo(TiktokNotify, 600, "Aqua", "Shion")
 	runGo(News, 600, "Aqua", "Shion")
 
-	select {}
+	runGo(YoutubeStreamNotify, 300, "Rinchan", "Rinco", "DesuRinco")
+	runGo(YoutubeNotify, 3600, "Rinchan", "Rinco", "DesuRinco")
 
-	// youtube.GetMemberShip("UC1opHUrw8rvnsadT-iGp7Cg")
-	// LiveChatOriginal("aUZcgG-x3hY")
+	select {}
 }
 
 func YoutubeStreamNotify(name string) {
@@ -518,8 +518,24 @@ func YoutubeNotify(name string) {
 			}
 
 			if old.PublishedTime != new.PublishedTime {
+				baseEmbed.New(new.Title, new.Url, "影片發佈時間更新了！", new.Thumbnail).Change(old.PublishedTime.String("full"), new.PublishedTime.String("full")).Send(s, testChannelId)
 				db.Update("Video", new.Id, "PublishedTime", new.PublishedTime.String())
 			}
+
+			// if old.ScheduledTime != new.ScheduledTime {
+			// 	baseEmbed.New(new.Title, new.Url, "影片預定時間更新了！", new.Thumbnail).Change(old.ScheduledTime.String("full"), new.ScheduledTime.String("full")).Send(s, testChannelId)
+			// 	db.Update("Video", new.Id, "ScheduledTime", new.ScheduledTime.String())
+			// }
+
+			// if old.StartTime != new.StartTime {
+			// 	baseEmbed.New(new.Title, new.Url, "影片開始時間更新了！", new.Thumbnail).Change(old.StartTime.String("full"), new.StartTime.String("full")).Send(s, testChannelId)
+			// 	db.Update("Video", new.Id, "StartTime", new.StartTime.String())
+			// }
+
+			// if old.EndTime != new.EndTime {
+			// 	baseEmbed.New(new.Title, new.Url, "影片結束時間更新了！", new.Thumbnail).Change(old.EndTime.String("full"), new.EndTime.String("full")).Send(s, testChannelId)
+			// 	db.Update("Video", new.Id, "EndTime", new.EndTime.String())
+			// }
 
 			if old.Music && ((new.ViewCount < 1000000 && new.ViewCount/100000 > old.ViewCount/100000) || (new.ViewCount >= 1000000 && new.ViewCount/500000 > old.ViewCount/500000)) {
 				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, discordChannelId)

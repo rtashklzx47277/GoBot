@@ -31,7 +31,7 @@ func (mySQL *MySQL) FindChannel(channelId string) youtube.Channel {
 }
 
 func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
-	query := "SELECT Id, Title, Description, Length, ViewCount, LiveStatus, PublishedTime, Comment, Private, Music FROM Video WHERE ChannelId = ?"
+	query := "SELECT Id, Title, Description, Length, ViewCount, LiveStatus, PublishedTime, ScheduledTime, StartTime, EndTime, Comment, Private, Music FROM Video WHERE ChannelId = ?"
 	rows, err := mySQL.db.Query(query, channelId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
@@ -42,10 +42,10 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 
 	for rows.Next() {
 		var video youtube.Video
-		var title, description, length, publishedTime sql.NullString
+		var title, description, length, publishedTime, scheduledTime, startTime, endTime sql.NullString
 		var viewCount, liveStatus sql.NullInt64
 
-		err := rows.Scan(&video.Id, &title, &description, &length, &viewCount, &liveStatus, &publishedTime, &video.Comment, &video.Private, &video.Music)
+		err := rows.Scan(&video.Id, &title, &description, &length, &viewCount, &liveStatus, &publishedTime, &scheduledTime, &startTime, &endTime, &video.Comment, &video.Private, &video.Music)
 		if err != nil {
 			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
@@ -56,6 +56,9 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 		video.ViewCount = handleNullInt(viewCount)
 		video.LiveStatus = handleNullInt(liveStatus)
 		video.PublishedTime = stringToTime(handleNullString(publishedTime))
+		video.ScheduledTime = stringToTime(handleNullString(scheduledTime))
+		video.StartTime = stringToTime(handleNullString(startTime))
+		video.EndTime = stringToTime(handleNullString(endTime))
 
 		video.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", channelId, video.Id)
 		video.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", video.Id)

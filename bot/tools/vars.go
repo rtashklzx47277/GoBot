@@ -139,5 +139,23 @@ var (
 				"DiscordChannelId": "971271623221075968",
 			},
 		},
+		"Rinchan": {
+			"Youtube": {
+				"Id":               "UCrV1Hf5r8P148idjoSfrGEQ",
+				"DiscordChannelId": "872762880200687666",
+			},
+		},
+		"Rinco": {
+			"Youtube": {
+				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
+				"DiscordChannelId": "872762880200687666",
+			},
+		},
+		"DesuRinco": {
+			"Youtube": {
+				"Id":               "UC0G3JPhTMpZh1r-TvUbimzA",
+				"DiscordChannelId": "872762880200687666",
+			},
+		},
 	}
 )

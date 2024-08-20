@@ -59,6 +59,10 @@ func GetChannel(channelId string) (Channel, error) {
 		ViewCount:       item.Get("statistics").Get("viewCount").Int(),
 	}
 
+	if channel.Banner == "" {
+		channel.Banner = tools.DefaultImage
+	}
+
 	return channel, nil
 }
 
@@ -147,6 +151,10 @@ func GetPlaylistItems(playlistId string, num int) ([]Video, error) {
 		path := fmt.Sprintf("playlistItems?part=snippet&playlistId=%s&maxResults=%d&pageToken=%s", playlistId, num, pageToken)
 		data, err := getData(path)
 		if err != nil {
+			if strings.HasPrefix(playlistId, "UUMO") {
+				return []Video{}, nil
+			}
+
 			return []Video{}, err
 		}
 

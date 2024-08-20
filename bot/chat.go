@@ -11,14 +11,14 @@ import (
 )
 
 type Message struct {
-	Id       string
-	VideoId  string
-	Type     string
-	AuthorId string
-	Time     tools.Time
-	Badge    string
-	Amount   string
-	Text     string
+	Id        string
+	VideoId   string
+	Type      string
+	ChannelId string
+	Time      tools.Time
+	Badge     string
+	Amount    string
+	Text      string
 }
 
 func LiveChat(videoId, discordChannelId string) {
@@ -227,14 +227,14 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle, discor
 	}
 
 	message := Message{
-		Id:       messageId,
-		VideoId:  videoId,
-		Type:     form,
-		AuthorId: authorId,
-		Time:     tools.Time(time.Unix(0, int64(renderer.Get("timestampUsec").Int()*1000))),
-		Badge:    getBadge(renderer),
-		Amount:   renderer.Get("purchaseAmountText").Get("simpleText").String(),
-		Text:     getMessage(renderer),
+		Id:        messageId,
+		VideoId:   videoId,
+		Type:      form,
+		ChannelId: authorId,
+		Time:      tools.Time(time.Unix(0, int64(renderer.Get("timestampUsec").Int()*1000))),
+		Badge:     getBadge(renderer),
+		Amount:    renderer.Get("purchaseAmountText").Get("simpleText").String(),
+		Text:      getMessage(renderer),
 	}
 
 	var template string
@@ -380,12 +380,12 @@ func toJSON(item *tools.Json) string {
 
 func (message Message) Map() map[string]any {
 	messageMap := map[string]any{
-		"Id":       message.Id,
-		"VideoId":  message.VideoId,
-		"Type":     message.Type,
-		"AuthorId": message.AuthorId,
-		"Time":     message.Time.String(),
-		"Text":     message.Text,
+		"Id":        message.Id,
+		"VideoId":   message.VideoId,
+		"Type":      message.Type,
+		"ChannelId": message.ChannelId,
+		"Time":      message.Time.String(),
+		"Text":      message.Text,
 	}
 
 	if message.Badge != "" {

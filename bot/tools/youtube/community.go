@@ -106,12 +106,12 @@ func getRenderer(item *tools.Json) Renderer {
 
 	if attachment.Exist("backstageImageRenderer") {
 		renderer.Type = "Image"
-		renderer.Images = append(renderer.Images, getThumbnail(attachment.Get("backstageImageRenderer")))
+		renderer.Images = append(renderer.Images, getThumbnail(attachment.Get("backstageImageRenderer").Get("image")))
 	} else if attachment.Exist("postMultiImageRenderer") {
 		renderer.Type = "Image"
 
 		for _, image := range attachment.Get("postMultiImageRenderer").Get("images").JsonArray() {
-			renderer.Images = append(renderer.Images, getThumbnail(image.Get("backstageImageRenderer")))
+			renderer.Images = append(renderer.Images, getThumbnail(image.Get("backstageImageRenderer").Get("image")))
 		}
 	} else if attachment.Exist("videoRenderer") {
 		renderer.Type = "Video"
@@ -166,9 +166,29 @@ func getQuiz(item *tools.Json) []Choice {
 }
 
 func getThumbnail(item *tools.Json) string {
-	if !item.Exist("image") {
+	if !item.Exist("thumbnails") {
 		return ""
 	}
 
-	return item.Get("image").Get("thumbnails").Index(-1).Get("url").Split("=s")[0]
+	url := item.Get("thumbnails").Index(-1).Get("url").String()
+
+	if strings.Contains(url, "=s") {
+		return strings.Split(url, "=s")[0]
+	}
+
+	return strings.Split(url, "=w")[0]
+}
+
+func parseRun(renderer *tools.Json) string {
+	if renderer.Exist("simpleText") {
+		return renderer.Get("simpleText").String()
+	}
+
+	var text string
+
+	for _, run := range renderer.Get("runs").JsonArray() {
+		text += run.Get("text").String()
+	}
+
+	return text
 }
