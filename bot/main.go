@@ -9,6 +9,7 @@ import (
 	"GoBot/tools/twitcasting"
 	"GoBot/tools/twitch"
 	"GoBot/tools/youtube"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -23,6 +24,7 @@ var (
 	s             *discordgo.Session
 	collabIds     = []string{}
 	messageIdList = []string{}
+	logChannelId  = os.Getenv("DISCORD_LOG_CHANNEL_ID")
 	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 
 	commands = []*discordgo.ApplicationCommand{
@@ -711,12 +713,14 @@ func YoutubeNotify(name string) {
 
 	postIds := db.Distinct("post", channelId)
 	posts, err := youtube.GetCommunity(channelId)
-	if err != nil {
+	if errors.Is(err, youtube.ErrorNoPost) {
+		return
+	} else if err != nil {
 		panic(err)
 	}
 
 	if len(posts) == 0 {
-		s.ChannelMessageSend(testChannelId, "Youtube會員Cookie可能已過期！")
+		s.ChannelMessageSend(logChannelId, "Youtube會員Cookie可能已過期！")
 	}
 
 	for _, post := range posts {

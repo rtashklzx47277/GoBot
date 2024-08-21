@@ -4,6 +4,7 @@ import (
 	"GoBot/tools"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -21,17 +22,22 @@ type Message struct {
 	Text      string
 }
 
+var ErrorNoChat = fmt.Errorf("chat is not yet available")
+
 func LiveChat(videoId, discordChannelId string) {
 	channelTitle, apiKey, continuation, err := getParameters(videoId)
-	if err != nil {
-		fmt.Printf("failed to get parameters: %s\n", err)
+	if errors.Is(err, ErrorNoChat) {
+		fmt.Printf("chat is not yet available: %s\n", videoId)
+		return
+	} else if err != nil {
+		fmt.Printf("failed to get \"%s\" parameters: %v\n", videoId, err)
 		return
 	}
 
 	messageIdList = append(messageIdList, db.Distinct("message", videoId)...)
 
-	fmt.Printf("Start Getting Video Chat: %s\n", videoId)
-	defer fmt.Printf("Stop Getting Video Chat: %s\n", videoId)
+	fmt.Printf("Start Getting Video Chat: %v\n", videoId)
+	defer fmt.Printf("Stop Getting Video Chat: %v\n", videoId)
 
 	count := 0
 
@@ -43,7 +49,7 @@ func LiveChat(videoId, discordChannelId string) {
 
 		data, err := getChatData(apiKey, continuation)
 		if err != nil {
-			fmt.Printf("failed to get chat data: %s\n", err)
+			fmt.Printf("failed to get \"%s\" chat data: %v\n", videoId, err)
 			continue
 		}
 
@@ -76,6 +82,10 @@ func getParameters(videoId string) (string, string, string, error) {
 	data, err := tools.ToString(reader)
 	if err != nil {
 		return "", "", "", err
+	}
+
+	if strings.Contains(data, "這部直播影片的聊天室已停用") {
+		return "", "", "", ErrorNoChat
 	}
 
 	channelTitle, ok := tools.Regexp(data, `{"authorName":{"simpleText":"(.+?)"}`)
@@ -355,6 +365,8 @@ func parseRun(renderer *tools.Json) string {
 	for _, run := range renderer.Get("runs").JsonArray() {
 		if run.Exist("text") {
 			text += run.Get("text").String()
+		} else if run.Exist("emoji") {
+			text += run.Get("emoji").Get("shortcuts").Index(0).String()
 		} else {
 			fmt.Println(toJSON(run))
 		}

@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	secure_3PSID   = os.Getenv("SECURE_3PSID")
-	secure_3PSIDTS = os.Getenv("SECURE_3PSIDTS")
+	secure_3PSID      = os.Getenv("SECURE_3PSID")
+	secure_3PSIDTS    = os.Getenv("SECURE_3PSIDTS")
+	ErrorNoPost       = fmt.Errorf("doesn't have community post")
+	ErrorNoMembership = fmt.Errorf("membership is not yet available")
 )
 
 func GetCommunity(channelId string) ([]Post, error) {
@@ -37,7 +39,12 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 	var posts []Post
 
-	for _, item := range getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs")).Get("tabRenderer").Get("content").Get("sectionListRenderer").Get("contents").Index(0).Get("itemSectionRenderer").Get("contents").JsonArray() {
+	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "Community")
+	if !ok {
+		return []Post{}, ErrorNoPost
+	}
+
+	for _, item := range tab.Get("tabRenderer").Get("content").Get("sectionListRenderer").Get("contents").Index(0).Get("itemSectionRenderer").Get("contents").JsonArray() {
 		if !item.Exist("backstagePostThreadRenderer") {
 			break
 		}
@@ -62,14 +69,14 @@ func GetCommunity(channelId string) ([]Post, error) {
 	return posts, nil
 }
 
-func getTab(item *tools.Json) *tools.Json {
+func getTab(item *tools.Json, target string) (*tools.Json, bool) {
 	for _, tab := range item.JsonArray() {
-		if tab.Get("tabRenderer").Get("selected").Bool() {
-			return tab
+		if tab.Get("tabRenderer").Get("selected").Bool() && tab.Get("tabRenderer").Get("title").String() == target {
+			return tab, true
 		}
 	}
 
-	return &tools.Json{}
+	return &tools.Json{}, false
 }
 
 func getContentText(item *tools.Json) string {

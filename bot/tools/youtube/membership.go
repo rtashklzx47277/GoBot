@@ -28,7 +28,12 @@ func GetMemberShip(channelId string) error {
 		return err
 	}
 
-	for _, item := range getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs")).Get("tabRenderer").Get("content").Get("sectionListRenderer").Get("contents").Index(0).Get("sponsorshipsExpandablePerksRenderer").Get("expandableItems").JsonArray() {
+	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "Membership")
+	if !ok {
+		return ErrorNoMembership
+	}
+
+	for _, item := range tab.Get("tabRenderer").Get("content").Get("sectionListRenderer").Get("contents").Index(0).Get("sponsorshipsExpandablePerksRenderer").Get("expandableItems").JsonArray() {
 		renderer := item.Get("sponsorshipsPerkRenderer")
 
 		if renderer.Exist("loyaltyBadges") {
