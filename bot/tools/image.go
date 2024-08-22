@@ -175,7 +175,7 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 
 		reader = file
 	case "url":
-		bytes, err := Get(imagePath).Do()
+		bytes, err := Get(imagePath).AddHeader("User-Agent", UserAgent).Do()
 		if err != nil {
 			return nil, err
 		}
