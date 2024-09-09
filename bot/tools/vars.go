@@ -142,19 +142,19 @@ var (
 		"Rinchan": {
 			"Youtube": {
 				"Id":               "UCrV1Hf5r8P148idjoSfrGEQ",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "965967553870594098",
 			},
 		},
 		"Rinco": {
 			"Youtube": {
 				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "965967553870594098",
 			},
 		},
 		"DesuRinco": {
 			"Youtube": {
 				"Id":               "UC0G3JPhTMpZh1r-TvUbimzA",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "965967553870594098",
 			},
 		},
 	}

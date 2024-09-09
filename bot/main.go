@@ -671,6 +671,10 @@ func YoutubeNotify(name string) {
 							panic(err)
 						}
 
+						if video.Author.Id == "" {
+							video.Author.Id = channelId
+						}
+
 						db.Insert("Video", video.Map())
 					}
 

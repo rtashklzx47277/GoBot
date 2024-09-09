@@ -69,21 +69,21 @@ func GetUser(userId string) (User, error) {
 
 	user.Color = data.Get("data").Index(0).Get("color").String()
 
-	url = fmt.Sprintf("https://api.twitch.tv/helix/chat/settings?broadcaster_id=%s", userId)
-	data, err = getData(url)
-	if err != nil {
-		return User{}, fmt.Errorf("failed to get chat setting!\n%w", err)
-	}
+	// url = fmt.Sprintf("https://api.twitch.tv/helix/chat/settings?broadcaster_id=%s", userId)
+	// data, err = getData(url)
+	// if err != nil {
+	// 	return User{}, fmt.Errorf("failed to get chat setting!\n%w", err)
+	// }
 
-	item = data.Get("data").Index(0)
+	// item = data.Get("data").Index(0)
 
-	user.EmoteMode = item.Get("emote_mode").Bool()
-	user.SubscriberMode = item.Get("subscriber_mode").Bool()
-	user.UniqueMode = item.Get("unique_chat_mode").Bool()
-	user.FollowMode = item.Get("follower_mode").Bool()
-	user.FollowTime = item.Get("follower_mode_duration").Int()
-	user.SlowMode = item.Get("slow_mode").Bool()
-	user.SlowTime = item.Get("slow_mode_wait_time").Int()
+	// user.EmoteMode = item.Get("emote_mode").Bool()
+	// user.SubscriberMode = item.Get("subscriber_mode").Bool()
+	// user.UniqueMode = item.Get("unique_chat_mode").Bool()
+	// user.FollowMode = item.Get("follower_mode").Bool()
+	// user.FollowTime = item.Get("follower_mode_duration").Int()
+	// user.SlowMode = item.Get("slow_mode").Bool()
+	// user.SlowTime = item.Get("slow_mode_wait_time").Int()
 
 	return user, nil
 }

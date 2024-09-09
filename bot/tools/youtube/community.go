@@ -39,7 +39,7 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 	var posts []Post
 
-	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "Community")
+	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "社群")
 	if !ok {
 		return []Post{}, ErrorNoPost
 	}
