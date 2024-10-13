@@ -174,7 +174,7 @@ func (js *Json) Time() Time {
 		return Time{}
 	}
 
-	ts, err := time.Parse(time.RFC3339, strings.Replace(js.String(), "+", "Z", 1))
+	ts, err := time.Parse(time.RFC3339, js.String())
 	if err != nil {
 		return Time{}
 	}

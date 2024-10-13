@@ -75,6 +75,7 @@ func (paln Plan) Map() map[string]any {
 func (post Post) Map() map[string]any {
 	postMap := map[string]any{
 		"Id":            post.Id,
+		"UserId":        post.UserId,
 		"Title":         post.Title,
 		"Fee":           post.Fee,
 		"PublishedTime": post.PublishedTime.String(),

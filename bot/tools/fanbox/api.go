@@ -6,7 +6,8 @@ import (
 )
 
 func getData(path string) (*tools.Json, error) {
-	reader, err := tools.Get(path).AddHeader("origin", "https://www.fanbox.cc").Do()
+	reader, err := tools.Get(path).
+		AddHeader("Origin", "https://www.fanbox.cc").Do()
 	if err != nil {
 		return &tools.Json{}, err
 	}
@@ -26,7 +27,7 @@ func GetUser(userId string) (User, error) {
 		return User{}, err
 	}
 
-	item := data.Get("data").Get("body")
+	item := data.Get("body")
 	user := User{
 		Id:          item.Get("user").Get("userId").String(),
 		CreatorId:   item.Get("creatorId").String(),
@@ -99,7 +100,7 @@ func GetPost(userId string) ([]Post, error) {
 
 	var posts []Post
 
-	for _, item := range data.Get("body").Get("items").JsonArray() {
+	for _, item := range data.Get("body").JsonArray() {
 		post := Post{
 			Id:            item.Get("id").String(),
 			UserId:        userId,
@@ -111,10 +112,6 @@ func GetPost(userId string) ([]Post, error) {
 		}
 
 		post.Url = fmt.Sprintf("https://www.fanbox.cc/@%s/posts/%s", item.Get("creatorId").String(), post.Id)
-
-		if post.Image == "null" {
-			post.Image = tools.DefaultImage
-		}
 
 		posts = append(posts, post)
 	}

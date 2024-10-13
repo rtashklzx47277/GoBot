@@ -26,3 +26,27 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 
 	return user
 }
+
+func (mySQL *MySQL) FindFanboxPostIds(userId string) []string {
+	query := "SELECT DISTINCT Id FROM FanboxPost WHERE Id = ?"
+
+	rows, err := mySQL.db.Query(query, userId)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+	defer rows.Close()
+
+	var result []string
+
+	for rows.Next() {
+		var value string
+
+		err := rows.Scan(&value)
+		if err != nil {
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+		}
+		result = append(result, value)
+	}
+
+	return result
+}

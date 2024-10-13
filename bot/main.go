@@ -254,11 +254,11 @@ func main() {
 	runGo(Collab, 600, "Aqua", "Shion")
 	runGo(TwitchStreamNotify, 60, "Aqua", "Shion")
 	runGo(TwitchNotify, 600, "Aqua", "Shion")
-	runGo(TiktokNotify, 600, "Aqua", "Shion")
+	// runGo(TiktokNotify, 600, "Aqua", "Shion")
 	runGo(News, 600, "Aqua", "Shion")
 
-	runGo(YoutubeStreamNotify, 300, "Rinchan", "Rinco", "DesuRinco")
-	runGo(YoutubeNotify, 3600, "Rinchan", "Rinco", "DesuRinco")
+	runGo(YoutubeStreamNotify, 180, "Rinchan", "Rinco", "DesuRinco")
+	runGo(YoutubeNotify, 1800, "Rinchan", "Rinco", "DesuRinco")
 
 	select {}
 }

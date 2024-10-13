@@ -21,6 +21,7 @@ var apiKeyList = map[int]string{
 }
 
 func getData(path string) (*tools.Json, error) {
+	// url := fmt.Sprintf("https://www.googleapis.com/youtube/v3/%s&key=%s", path, "AIzaSyDyLkKGgzBYiEjORAkXNmnNnlwotAD-RHI")
 	url := fmt.Sprintf("https://www.googleapis.com/youtube/v3/%s&key=%s", path, apiKeyList[time.Now().Hour()/3+1])
 	reader, err := tools.Get(url).Do()
 	if err != nil {
