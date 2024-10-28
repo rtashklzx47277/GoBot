@@ -139,14 +139,14 @@ var (
 				"DiscordChannelId": "971271623221075968",
 			},
 		},
-		"Rinchan": {
+		"Sakuna": {
 			"Youtube": {
 				"Id":               "UCrV1Hf5r8P148idjoSfrGEQ",
 				"DiscordChannelId": "965967553870594098",
 			},
 			"Fanbox": {
 				"Id":               "80355000",
-				"DiscordChannelId": "965967553870594098",
+				"DiscordChannelId": "1300328308705198132",
 			},
 		},
 		"Rinco": {

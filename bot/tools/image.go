@@ -46,6 +46,10 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 }
 
 func ImageUpload(imagePath string) (string, error) {
+	if imagePath == "" {
+		return "", nil
+	}
+
 	pic, err := os.ReadFile(imagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file!\n%w", err)
@@ -94,7 +98,11 @@ func ImageUpload(imagePath string) (string, error) {
 }
 
 func ImageDownload(imageUrl string, filePath ...string) error {
-	reader, err := Get(imageUrl).Do()
+	if imageUrl == "" {
+		return nil
+	}
+
+	reader, err := Get(imageUrl).AddHeader("User-Agent", UserAgent).Do()
 	if err != nil {
 		return err
 	}

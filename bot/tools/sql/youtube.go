@@ -299,3 +299,18 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 
 	return comment
 }
+
+func (mySQL *MySQL) FindVideoStatus(videoId string) int {
+	var video youtube.Video
+	var liveStatus sql.NullInt64
+
+	query := "SELECT LiveStatus FROM Video WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, videoId).Scan(&liveStatus)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+
+	video.LiveStatus = handleNullInt(liveStatus)
+
+	return video.LiveStatus
+}

@@ -64,6 +64,7 @@ func (user User) Map() map[string]any {
 func (paln Plan) Map() map[string]any {
 	palnMap := map[string]any{
 		"Id":          paln.Id,
+		"UserId":      paln.UserId,
 		"Title":       paln.Title,
 		"Fee":         paln.Fee,
 		"Description": paln.Description,

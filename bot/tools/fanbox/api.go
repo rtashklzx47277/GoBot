@@ -81,7 +81,7 @@ func GetPlan(userId string) ([]Plan, error) {
 			Image:       item.Get("coverImageUrl").String(),
 		}
 
-		if plan.Image == "null" {
+		if plan.Image == "" {
 			plan.Image = tools.DefaultImage
 		}
 
@@ -92,7 +92,7 @@ func GetPlan(userId string) ([]Plan, error) {
 }
 
 func GetPost(userId string) ([]Post, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=100", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=3", userId)
 	data, err := getData(url)
 	if err != nil {
 		return []Post{}, err

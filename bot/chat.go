@@ -25,12 +25,31 @@ type Message struct {
 var ErrorNoChat = fmt.Errorf("chat is not yet available")
 
 func LiveChat(videoId, discordChannelId string) {
-	channelTitle, apiKey, continuation, err := getParameters(videoId)
-	if errors.Is(err, ErrorNoChat) {
-		fmt.Printf("chat is not yet available: %s\n", videoId)
-		return
-	} else if err != nil {
-		fmt.Printf("failed to get \"%s\" parameters: %v\n", videoId, err)
+	var channelTitle, apiKey, continuation string
+	var err error
+	check := true
+
+	for {
+		channelTitle, apiKey, continuation, err = getParameters(videoId)
+		if err == nil {
+			break
+		}
+
+		if errors.Is(err, ErrorNoChat) {
+			fmt.Printf("直播影片的聊天室已停用，重新嘗試讀取聊天室 (%s)\n", videoId)
+
+			if db.FindVideoStatus(videoId) == 0 {
+				check = false
+				break
+			}
+		} else {
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("failed to get \"%s\" parameters: %v\n", videoId, err))
+		}
+
+		time.Sleep(300 * time.Second)
+	}
+
+	if !check {
 		return
 	}
 
@@ -50,6 +69,7 @@ func LiveChat(videoId, discordChannelId string) {
 		data, err := getChatData(apiKey, continuation)
 		if err != nil {
 			fmt.Printf("failed to get \"%s\" chat data: %v\n", videoId, err)
+			count++
 			continue
 		}
 
@@ -69,6 +89,8 @@ func LiveChat(videoId, discordChannelId string) {
 		for _, action := range data.Get("continuationContents").Get("liveChatContinuation").Get("actions").JsonArray() {
 			getMessageData(action, videoId, channelTitle, discordChannelId)
 		}
+
+		count = 0
 	}
 }
 
