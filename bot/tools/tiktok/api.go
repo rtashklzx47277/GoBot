@@ -5,25 +5,18 @@ import (
 	"fmt"
 )
 
-func getData(path string) (*tools.Json, error) {
+func getData(path string) (string, error) {
 	reader, err := tools.Get(path).Do()
 	if err != nil {
-		return &tools.Json{}, err
+		return "", err
 	}
 
 	data, err := tools.ToString(reader)
-
-	match, ok := tools.Regexp(data, `"user":(.*),"stats"`)
-	if !ok {
-		return &tools.Json{}, fmt.Errorf("failed to get user data!\n%w", err)
-	}
-
-	jsonData, err := tools.StringToJson(match)
 	if err != nil {
-		return &tools.Json{}, err
+		return "", err
 	}
 
-	return jsonData, nil
+	return data, nil
 }
 
 func GetUser(userId string) (User, error) {
@@ -33,16 +26,38 @@ func GetUser(userId string) (User, error) {
 		return User{}, err
 	}
 
+	match, ok := tools.Regexp(data, `"user":(.*),"stats"`)
+	if !ok {
+		return User{}, fmt.Errorf("failed to get user data!\n%w", err)
+	}
+
+	jsonData, err := tools.StringToJson(match)
+	if err != nil {
+		return User{}, err
+	}
+
 	user := User{
-		Id:          data.Get("id").String(),
-		ShortId:     data.Get("shortId").String(),
-		UniqueId:    data.Get("uniqueId").String(),
-		Title:       data.Get("nickname").String(),
-		Description: data.Get("signature").String(),
-		Icon:        data.Get("avatarLarger").String(),
+		Id:          jsonData.Get("id").String(),
+		ShortId:     jsonData.Get("shortId").String(),
+		UniqueId:    jsonData.Get("uniqueId").String(),
+		Title:       jsonData.Get("nickname").String(),
+		Description: jsonData.Get("signature").String(),
+		Icon:        jsonData.Get("avatarLarger").String(),
 	}
 
 	user.Url = fmt.Sprintf("https://www.tiktok.com/@%s", user.UniqueId)
+
+	match, ok = tools.Regexp(data, `"stats":(.*),"itemList"`)
+	if !ok {
+		return User{}, fmt.Errorf("failed to get user data!\n%w", err)
+	}
+
+	jsonData, err = tools.StringToJson(match)
+	if err != nil {
+		return User{}, err
+	}
+
+	user.FollowCount = jsonData.Get("followingCount").Int()
 
 	return user, nil
 }

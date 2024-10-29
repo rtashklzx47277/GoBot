@@ -8,10 +8,18 @@ type User struct {
 	CreatorId   string
 	Name        string
 	Description string
+	Category    string
 	Icon        string
 	Banner      string
 	Links       []string
 	Items       []Item
+}
+
+type Item struct {
+	Id     string
+	UserId string
+	Type   string
+	Media  string
 }
 
 type Plan struct {
@@ -34,10 +42,9 @@ type Post struct {
 	UpdatedTime   tools.Time
 }
 
-type Item struct {
-	Id    string
-	Type  string
-	Image string
+type ZipItem struct {
+	Old *Item
+	New *Item
 }
 
 type ZipPlan struct {
@@ -56,9 +63,21 @@ func (user User) Map() map[string]any {
 		"CreatorId":   user.CreatorId,
 		"Name":        user.Name,
 		"Description": user.Description,
+		"Category":    user.Category,
 	}
 
 	return userMap
+}
+
+func (item Item) Map() map[string]any {
+	itemMap := map[string]any{
+		"Id":     item.Id,
+		"UserId": item.UserId,
+		"Type":   item.Type,
+		"Media":  item.Media,
+	}
+
+	return itemMap
 }
 
 func (paln Plan) Map() map[string]any {
@@ -86,13 +105,36 @@ func (post Post) Map() map[string]any {
 	return postMap
 }
 
-func (item Item) Map() map[string]any {
-	itemMap := map[string]any{
-		"Id":   item.Id,
-		"Type": item.Type,
+func GroupItem(old, new []Item) []ZipItem {
+	result := []ZipItem{}
+
+	itemMap := map[string]bool{}
+	oldMap, newMap := map[string]Item{}, map[string]Item{}
+
+	for _, item := range old {
+		itemMap[item.Id] = true
+		oldMap[item.Id] = item
 	}
 
-	return itemMap
+	for _, item := range new {
+		itemMap[item.Id] = true
+		newMap[item.Id] = item
+	}
+
+	for itemId := range itemMap {
+		oldItem, ok1 := oldMap[itemId]
+		newItem, ok2 := newMap[itemId]
+
+		if ok1 && ok2 {
+			result = append(result, ZipItem{Old: &oldItem, New: &newItem})
+		} else if ok1 && !ok2 {
+			result = append(result, ZipItem{Old: &oldItem, New: nil})
+		} else if !ok1 && ok2 {
+			result = append(result, ZipItem{Old: nil, New: &newItem})
+		}
+	}
+
+	return result
 }
 
 func GroupPlan(old, new []Plan) []ZipPlan {

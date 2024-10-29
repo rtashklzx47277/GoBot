@@ -8,6 +8,7 @@ type User struct {
 	Title       string
 	Description string
 	Icon        string
+	FollowCount int
 }
 
 func (user User) Map() map[string]any {
@@ -17,6 +18,7 @@ func (user User) Map() map[string]any {
 		"UniqueId":    user.UniqueId,
 		"Title":       user.Title,
 		"Description": user.Description,
+		"FollowCount": user.FollowCount,
 	}
 
 	return userMap

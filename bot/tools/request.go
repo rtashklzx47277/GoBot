@@ -94,3 +94,19 @@ func ToImage(reader io.ReadCloser) (image.Image, error) {
 
 	return picture, nil
 }
+
+func GetTitle(path string) (string, error) {
+	reader, err := Get(path).AddHeader("User-Agent", UserAgent).Do()
+	if err != nil {
+		return "", err
+	}
+
+	doc, err := ToDocument(reader)
+	if err != nil {
+		return "", err
+	}
+
+	title := doc.Find("title").Text()
+
+	return title, nil
+}

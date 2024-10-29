@@ -144,6 +144,10 @@ var (
 				"Id":               "UCrV1Hf5r8P148idjoSfrGEQ",
 				"DiscordChannelId": "965967553870594098",
 			},
+			"Tiktok": {
+				"Id":               "7430741405997761554",
+				"DiscordChannelId": "1300328308705198132",
+			},
 			"Fanbox": {
 				"Id":               "80355000",
 				"DiscordChannelId": "1300328308705198132",

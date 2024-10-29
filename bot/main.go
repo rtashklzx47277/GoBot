@@ -253,12 +253,13 @@ func main() {
 	runGo(YoutubeStreamNotify, 30, "Sakuna")
 	runGo(YoutubeNotify, 180, "Sakuna")
 	runGo(FanboxNotify, 180, "Sakuna")
+	runGo(TiktokNotify, 300, "Sakuna")
 
 	runGo(YoutubeStreamNotify, 30, "Shion")
 	runGo(YoutubeNotify, 300, "Shion")
 	runGo(TwitchStreamNotify, 60, "Shion")
 	runGo(TwitchNotify, 600, "Shion")
-	// runGo(TiktokNotify, 600, "Aqua", "Shion")
+	runGo(TiktokNotify, 600, "Shion")
 
 	runGo(YoutubeStreamNotify, 600, "Aqua")
 	runGo(YoutubeNotify, 1800, "Aqua")
@@ -1154,7 +1155,7 @@ func TiktokNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tiktok")
 
-	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], tools.UserData[name]["Tiktok"]["DiscordChannelId"]
+	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], testChannelId //tools.UserData[name]["Tiktok"]["DiscordChannelId"]
 
 	user, err := tiktok.GetUser(userUniqueId)
 	if err != nil {
@@ -1188,6 +1189,11 @@ func TiktokNotify(name string) {
 	if userData.Description != user.Description {
 		baseEmbed.New("", "", "用戶介紹更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
 		db.Update("TiktokUser", user.Id, "Description", user.Description)
+	}
+
+	if userData.FollowCount != user.FollowCount {
+		baseEmbed.New("", "", "用戶追隨數更新了！", "").Change(strconv.Itoa(userData.FollowCount), strconv.Itoa(user.FollowCount)).Send(s, discordChannelId)
+		db.Update("TiktokUser", user.Id, "FollowCount", user.FollowCount)
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
@@ -1237,6 +1243,11 @@ func FanboxNotify(name string) {
 		db.Update("FanboxUser", userId, "Description", user.Description)
 	}
 
+	if userData.Category != user.Category {
+		baseEmbed.New("", "", "用戶分類更新了！", "").Change(userData.Category, user.Category).Send(s, discordChannelId)
+		db.Update("FanboxUser", userId, "Category", user.Category)
+	}
+
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
 		err = tools.ImageDownload(user.Icon, "Fanbox", userId, "Icon", userId)
 		if err != nil {
@@ -1249,7 +1260,7 @@ func FanboxNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Fanbox", userId, "Banner", userId)
+		err = tools.ImageDownload(user.Banner, "Fanbox", userId, "Banner", userId)
 		if err != nil {
 			panic(err)
 		}
@@ -1257,6 +1268,64 @@ func FanboxNotify(name string) {
 		baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
 	} else if err != nil {
 		panic(err)
+	}
+
+	for _, link := range userData.Links {
+		if tools.IsContain(user.Links, link) {
+			continue
+		}
+
+		title, err := tools.GetTitle(link)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New(title, link, "刪除了用戶社群連結！", "").Send(s, discordChannelId)
+		db.Delete("FanboxLink", "WHERE UserId = ? AND Link = ?", userId, link)
+	}
+
+	for _, link := range user.Links {
+		if tools.IsContain(userData.Links, link) {
+			continue
+		}
+
+		title, err := tools.GetTitle(link)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New(title, link, "新增了用戶社群連結！", "").Send(s, discordChannelId)
+		db.Insert("FanboxLink", map[string]any{"UserId": userId, "Link": link})
+	}
+
+	for _, items := range fanbox.GroupItem(userData.Items, user.Items) {
+		if items.New == nil {
+			if items.Old.Type == "image" {
+				baseEmbed.New("", "", "刪除了用戶社群相片！", items.Old.Media).Send(s, discordChannelId)
+			} else {
+				title, err := tools.GetTitle(items.Old.Media)
+				if err != nil {
+					panic(err)
+				}
+
+				baseEmbed.New(title, items.Old.Media, "刪除了用戶社群影片！", "").Send(s, discordChannelId)
+			}
+
+			db.Delete("FanboxItem", "WHERE Id = ?", items.Old.Id)
+		} else if items.Old == nil {
+			if items.New.Type == "image" {
+				baseEmbed.New("", "", "新增了用戶社群相片！", items.New.Media).Send(s, discordChannelId)
+			} else {
+				title, err := tools.GetTitle(items.New.Media)
+				if err != nil {
+					panic(err)
+				}
+
+				baseEmbed.New(title, items.New.Media, "新增了用戶社群影片！", "").Send(s, discordChannelId)
+			}
+
+			db.Insert("FanboxItem", items.New.Map())
+		}
 	}
 
 	oldPlans := db.FindFanboxPlans(userId)

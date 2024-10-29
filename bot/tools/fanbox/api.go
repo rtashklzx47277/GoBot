@@ -34,6 +34,7 @@ func GetUser(userId string) (User, error) {
 		Name:        item.Get("user").Get("name").String(),
 		Description: item.Get("description").String(),
 		Icon:        item.Get("user").Get("iconUrl").String(),
+		Category:    item.Get("category").String(),
 		Banner:      item.Get("coverImageUrl").String(),
 	}
 
@@ -51,12 +52,29 @@ func GetUser(userId string) (User, error) {
 		user.Links = append(user.Links, link.(string))
 	}
 
-	for _, item := range item.Get("profileItems").JsonArray() {
-		user.Items = append(user.Items, Item{
-			Id:    item.Get("id").String(),
-			Type:  item.Get("type").String(),
-			Image: item.Get("imageUrl").String(),
-		})
+	for _, thing := range item.Get("profileItems").JsonArray() {
+		item := Item{
+			Id:     thing.Get("id").String(),
+			UserId: user.Id,
+			Type:   thing.Get("type").String(),
+		}
+
+		if item.Type == "image" {
+			item.Media = thing.Get("imageUrl").String()
+		} else if item.Type == "video" {
+			videoId := thing.Get("videoId").String()
+
+			switch thing.Get("serviceProvider").String() {
+			case "youtube":
+				item.Media = fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)
+			case "vimeo":
+				item.Media = fmt.Sprintf("https://vimeo.com/%s", videoId)
+			case "soundcloud":
+				item.Media = fmt.Sprintf("https://soundcloud.com/%s", videoId)
+			}
+		}
+
+		user.Items = append(user.Items, item)
 	}
 
 	return user, nil

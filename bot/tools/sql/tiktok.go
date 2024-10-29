@@ -9,9 +9,10 @@ import (
 func (mySQL *MySQL) FindTiktokUser(userId string) tiktok.User {
 	var user tiktok.User
 	var shortId, uniqueId, title, description sql.NullString
+	var followCount sql.NullInt64
 
-	query := "SELECT * FROM TiktokUser WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &shortId, &uniqueId, &title, &description)
+	query := "SELECT Id, ShortId, UniqueId, Title, Description, FollowCount FROM TiktokUser WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &shortId, &uniqueId, &title, &description, &followCount)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -20,6 +21,7 @@ func (mySQL *MySQL) FindTiktokUser(userId string) tiktok.User {
 	user.UniqueId = handleNullString(uniqueId)
 	user.Title = handleNullString(title)
 	user.Description = handleNullString(description)
+	user.FollowCount = handleNullInt(followCount)
 
 	user.Icon = fmt.Sprintf("/bot/media/Tiktok/%s/Icon/%s.jpg", user.Id, user.Id)
 	user.Url = fmt.Sprintf("https://www.tiktok.com/@%s", user.UniqueId)
