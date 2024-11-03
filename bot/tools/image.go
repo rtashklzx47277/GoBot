@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -48,6 +49,13 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 func ImageUpload(imagePath string) (string, error) {
 	if imagePath == "" {
 		return "", nil
+	}
+
+	_, err := os.Stat(imagePath)
+	if os.IsNotExist(err) {
+		return "", nil
+	} else if err != nil {
+		return "", err
 	}
 
 	pic, err := os.ReadFile(imagePath)
@@ -134,7 +142,7 @@ func imageChange(old, new image.Image) (string, error) {
 	height := max(old.Bounds().Max.Y, new.Bounds().Max.Y) * 2
 
 	canvas := image.NewRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{color.Black}, image.Point{}, draw.Over)
+	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{color.Gray{Y: 128}}, image.Point{}, draw.Over)
 
 	oldX := (width - old.Bounds().Max.X) / 2
 	oldY := (height/2 - old.Bounds().Max.Y) / 2
@@ -178,6 +186,9 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 	case "file":
 		file, err := os.Open(imagePath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
+			}
 			return nil, fmt.Errorf("failed to open file!\n%w", err)
 		}
 		defer file.Close()
@@ -186,15 +197,20 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 	case "url":
 		bytes, err := Get(imagePath).AddHeader("User-Agent", UserAgent).Do()
 		if err != nil {
+			if errors.Is(err, ErrorEmptyPath) {
+				return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
+			}
 			return nil, err
 		}
 
 		reader = bytes
 	}
 
-	pic, err := ToImage(reader)
+	defer reader.Close()
+
+	pic, _, err := image.Decode(reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse into image!\n%w", err)
 	}
 
 	return pic, err

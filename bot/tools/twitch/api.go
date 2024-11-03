@@ -50,7 +50,7 @@ func GetUser(userId string) (User, error) {
 	user.Url = fmt.Sprintf("https://www.twitch.tv/%s", user.LoginId)
 
 	if user.Thumbnail == "None" {
-		user.Thumbnail = tools.DefaultImage
+		user.Thumbnail = ""
 	}
 
 	url = fmt.Sprintf("https://api.twitch.tv/helix/channels?broadcaster_id=%s", userId)

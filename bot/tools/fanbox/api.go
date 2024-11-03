@@ -41,11 +41,11 @@ func GetUser(userId string) (User, error) {
 	user.Url = fmt.Sprintf("https://www.fanbox.cc/@%s", user.CreatorId)
 
 	if user.Icon == "null" {
-		user.Icon = tools.DefaultImage
+		user.Icon = ""
 	}
 
 	if user.Banner == "null" {
-		user.Banner = tools.DefaultImage
+		user.Banner = ""
 	}
 
 	for _, link := range item.Get("profileLinks").Array() {
@@ -99,10 +99,6 @@ func GetPlan(userId string) ([]Plan, error) {
 			Image:       item.Get("coverImageUrl").String(),
 		}
 
-		if plan.Image == "" {
-			plan.Image = tools.DefaultImage
-		}
-
 		plans = append(plans, plan)
 	}
 
@@ -110,7 +106,7 @@ func GetPlan(userId string) ([]Plan, error) {
 }
 
 func GetPost(userId string) ([]Post, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=3", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=100", userId)
 	data, err := getData(url)
 	if err != nil {
 		return []Post{}, err

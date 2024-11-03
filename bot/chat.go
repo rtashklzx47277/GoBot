@@ -238,15 +238,7 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 
 func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle, discordChannelId string) {
 	authorId := renderer.Get("authorExternalChannelId").String()
-	if !isWatch(authorId) {
-		return
-	}
-
 	messageId := renderer.Get("id").String()
-	if messageId == "" || tools.IsContain(messageIdList, messageId) {
-		return
-	}
-	messageIdList = append(messageIdList, messageId)
 
 	if form == "GiftSend" {
 		if renderer.Exist("showItemEndpoint") {
@@ -258,13 +250,21 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle, discor
 		form = "Milestone"
 	}
 
+	badge := getBadge(renderer)
+
+	if !check(authorId, badge) || messageId == "" || tools.IsContain(messageIdList, messageId) {
+		return
+	}
+
+	messageIdList = append(messageIdList, messageId)
+
 	message := Message{
 		Id:        messageId,
 		VideoId:   videoId,
 		Type:      form,
 		ChannelId: authorId,
 		Time:      tools.Time(time.Unix(0, int64(renderer.Get("timestampUsec").Int()*1000))),
-		Badge:     getBadge(renderer),
+		Badge:     badge,
 		Amount:    renderer.Get("purchaseAmountText").Get("simpleText").String(),
 		Text:      getMessage(renderer),
 	}
@@ -397,7 +397,11 @@ func parseRun(renderer *tools.Json) string {
 	return text
 }
 
-func isWatch(channelId string) bool {
+func check(channelId, badge string) bool {
+	if strings.Contains(badge, "Owner") || strings.Contains(badge, "Moderator") {
+		return true
+	}
+
 	for key := range tools.ChannelList {
 		if key == channelId {
 			return true

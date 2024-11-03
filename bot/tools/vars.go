@@ -3,7 +3,7 @@ package tools
 var (
 	UserAgent     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
 	ClientVersion = "2.20240620.05.00"
-	DefaultImage  = "https://i.imgur.com/2wAkxNb.png"
+	// DefaultImage  = "https://i.imgur.com/2wAkxNb.png"
 
 	ChannelList = map[string]string{
 		"UCJFZiqLMntJufDCHc6bQixg": "ホロライブ",
@@ -84,6 +84,7 @@ var (
 		"UCoztvTULBYd3WmStqYeoHcA": "笹木咲",
 		"UC9V3Y3_uzU5e-usObb6IE1w": "星川サラ",
 		"UC9EjSJ8pvxtvPdxLOElv73w": "魔界ノりりむ",
+		"UCrV1Hf5r8P148idjoSfrGEQ": "結城さくな",
 	}
 
 	UserData = map[string]map[string]map[string]string{
@@ -153,16 +154,14 @@ var (
 				"DiscordChannelId": "1300328308705198132",
 			},
 		},
-		"Rinco": {
+		"Kuroa": {
 			"Youtube": {
 				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
 				"DiscordChannelId": "965967553870594098",
 			},
-		},
-		"DesuRinco": {
-			"Youtube": {
-				"Id":               "UC0G3JPhTMpZh1r-TvUbimzA",
-				"DiscordChannelId": "965967553870594098",
+			"Fanbox": {
+				"Id":               "80355000",
+				"DiscordChannelId": "1300328308705198132",
 			},
 		},
 	}

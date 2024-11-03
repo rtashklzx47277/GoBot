@@ -28,7 +28,7 @@ func GetUser(userId string) (User, error) {
 
 	match, ok := tools.Regexp(data, `"user":(.*),"stats"`)
 	if !ok {
-		return User{}, fmt.Errorf("failed to get user data!\n%w", err)
+		return User{}, fmt.Errorf("failed to get user data!\n%s", data)
 	}
 
 	jsonData, err := tools.StringToJson(match)

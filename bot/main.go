@@ -1342,7 +1342,7 @@ func FanboxNotify(name string) {
 			}
 
 			baseEmbed.New(plans.Old.Title, "", "支援方案已被刪除！", image).Send(s, discordChannelId)
-			db.Delete("FanboxPlan", "WHERE UserId = ?", plans.Old.Id)
+			db.Delete("FanboxPlan", "WHERE Id = ?", plans.Old.Id)
 			tools.ImageRemove(plans.Old.Image)
 		} else if plans.Old == nil {
 			err = tools.ImageDownload(plans.New.Image, "Fanbox", userId, "Plan", plans.New.Id)
@@ -1354,17 +1354,17 @@ func FanboxNotify(name string) {
 			db.Insert("FanboxPlan", plans.New.Map())
 		} else {
 			if plans.Old.Title != plans.New.Title {
-				baseEmbed.New("", "", "支援方案名稱更新了！", "").Change(plans.Old.Title, plans.New.Title).Send(s, discordChannelId)
+				baseEmbed.New(plans.New.Title, "", "支援方案名稱更新了！", plans.New.Image).Change(plans.Old.Title, plans.New.Title).Send(s, discordChannelId)
 				db.Update("FanboxPlan", plans.New.Id, "Title", plans.New.Title)
 			}
 
 			if plans.Old.Fee != plans.New.Fee {
-				baseEmbed.New("", "", "支援方案費用更新了！", "").Change(strconv.Itoa(plans.Old.Fee), strconv.Itoa(plans.New.Fee)).Send(s, discordChannelId)
+				baseEmbed.New(plans.New.Title, "", "支援方案費用更新了！", plans.New.Image).Change(strconv.Itoa(plans.Old.Fee), strconv.Itoa(plans.New.Fee)).Send(s, discordChannelId)
 				db.Update("FanboxPlan", plans.New.Id, "Fee", plans.New.Fee)
 			}
 
 			if plans.Old.Description != plans.New.Description {
-				baseEmbed.New("", "", "支援方案介紹更新了！", "").Change(plans.Old.Description, plans.New.Description).Send(s, discordChannelId)
+				baseEmbed.New(plans.New.Title, "", "支援方案介紹更新了！", plans.New.Image).Change(plans.Old.Description, plans.New.Description).Send(s, discordChannelId)
 				db.Update("FanboxPlan", plans.New.Id, "Description", plans.New.Description)
 			}
 
@@ -1374,26 +1374,62 @@ func FanboxNotify(name string) {
 					panic(err)
 				}
 
-				baseEmbed.New("", "", "支援方案圖片更新了！", image).Send(s, discordChannelId)
+				baseEmbed.New(plans.New.Title, "", "支援方案圖片更新了！", image).Send(s, discordChannelId)
 			} else if err != nil {
 				panic(err)
 			}
 		}
 	}
 
-	postIds := db.FindFanboxPostIds(userId)
-	posts, err := fanbox.GetPost(userId)
+	oldPosts := db.FindFanboxPosts(userId)
+	newPosts, err := fanbox.GetPost(userId)
 	if err != nil {
 		panic(err)
 	}
 
-	for _, post := range posts {
-		if tools.IsContain(postIds, post.Id) {
-			continue
-		}
+	for _, posts := range fanbox.GroupPost(oldPosts, newPosts) {
+		if posts.New == nil {
+			image, err := tools.ImageUpload(posts.Old.Image)
+			if err != nil {
+				panic(err)
+			}
 
-		baseEmbed.New(post.Title, post.Url, "發佈了新的文章！", post.Image).Send(s, discordChannelId)
-		db.Insert("FanboxPost", post.Map())
+			baseEmbed.New(posts.Old.Title, "", "投稿文章已被刪除！", image).Send(s, discordChannelId)
+		} else if posts.Old == nil {
+			err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
+			if err != nil {
+				panic(err)
+			}
+
+			baseEmbed.New(posts.New.Title, posts.New.Url, "投稿了新的文章！", posts.New.Image).Send(s, discordChannelId)
+			db.Insert("FanboxPost", posts.New.Map())
+		} else {
+			if posts.Old.UpdatedTime.String() != posts.New.UpdatedTime.String() {
+				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章更新了！", posts.New.Image).Send(s, discordChannelId)
+				db.Update("FanboxPost", posts.New.Id, "UpdatedTime", posts.New.UpdatedTime.String())
+			}
+
+			if posts.Old.Title != posts.New.Title {
+				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章名稱更新了！", posts.New.Image).Change(posts.Old.Title, posts.New.Title).Send(s, discordChannelId)
+				db.Update("FanboxPost", posts.New.Id, "Title", posts.New.Title)
+			}
+
+			if posts.Old.Fee != posts.New.Fee {
+				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章費用更新了！", posts.New.Image).Change(strconv.Itoa(posts.Old.Fee), strconv.Itoa(posts.New.Fee)).Send(s, discordChannelId)
+				db.Update("FanboxPost", posts.New.Id, "Fee", posts.New.Fee)
+			}
+
+			if check, image, err := tools.ImageCheck(posts.Old.Image, posts.New.Image); err == nil && check == 0 {
+				err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
+				if err != nil {
+					panic(err)
+				}
+
+				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章圖片更新了！", image).Send(s, discordChannelId)
+			} else if err != nil {
+				panic(err)
+			}
+		}
 	}
 }
 

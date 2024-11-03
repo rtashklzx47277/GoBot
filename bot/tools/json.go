@@ -123,7 +123,7 @@ func (js *Json) Image() string {
 		}
 	}
 
-	return DefaultImage
+	return ""
 }
 
 func (js *Json) String() string {

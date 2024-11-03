@@ -50,8 +50,6 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	}
 	defer rows.Close()
 
-	var items []fanbox.Item
-
 	for rows.Next() {
 		var item fanbox.Item
 		var class, media sql.NullString
@@ -64,7 +62,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 		item.Type = handleNullString(class)
 		item.Media = handleNullString(media)
 
-		items = append(items, item)
+		user.Items = append(user.Items, item)
 	}
 
 	return user
@@ -102,26 +100,34 @@ func (mySQL *MySQL) FindFanboxPlans(userId string) []fanbox.Plan {
 	return plans
 }
 
-func (mySQL *MySQL) FindFanboxPostIds(userId string) []string {
-	query := "SELECT DISTINCT Id FROM FanboxPost WHERE UserId = ?"
-
+func (mySQL *MySQL) FindFanboxPosts(userId string) []fanbox.Post {
+	query := "SELECT Id, UserId, Title, Fee, UpdatedTime FROM FanboxPost WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 	defer rows.Close()
 
-	var result []string
+	var posts []fanbox.Post
 
 	for rows.Next() {
-		var value string
+		var post fanbox.Post
+		var title, updatedTime sql.NullString
+		var fee sql.NullInt64
 
-		err := rows.Scan(&value)
+		err := rows.Scan(&post.Id, &post.UserId, &title, &fee, &updatedTime)
 		if err != nil {
 			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
-		result = append(result, value)
+
+		post.Title = handleNullString(title)
+		post.Fee = handleNullInt(fee)
+		post.UpdatedTime = stringToTime(handleNullString(updatedTime))
+
+		post.Image = fmt.Sprintf("/bot/media/Fanbox/%s/Post/%s.jpg", userId, post.Id)
+
+		posts = append(posts, post)
 	}
 
-	return result
+	return posts
 }

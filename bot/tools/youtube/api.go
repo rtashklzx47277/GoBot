@@ -60,10 +60,6 @@ func GetChannel(channelId string) (Channel, error) {
 		ViewCount:       item.Get("statistics").Get("viewCount").Int(),
 	}
 
-	if channel.Banner == "" {
-		channel.Banner = tools.DefaultImage
-	}
-
 	return channel, nil
 }
 

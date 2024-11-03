@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"image"
 	"io"
 	"net/http"
 
@@ -11,6 +10,8 @@ import (
 )
 
 type Request http.Request
+
+var ErrorEmptyPath = fmt.Errorf("path cannot be empty")
 
 func Get(path string) *Request {
 	req, _ := http.NewRequest("GET", path, nil)
@@ -37,6 +38,10 @@ func (req *Request) AddCookie(key, value string) *Request {
 }
 
 func (req *Request) Do() (io.ReadCloser, error) {
+	if req.URL.String() == "" {
+		return nil, ErrorEmptyPath
+	}
+
 	resp, err := http.DefaultClient.Do((*http.Request)(req))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute HTTP request!\n%w", err)
@@ -82,17 +87,6 @@ func ToDocument(reader io.ReadCloser) (*goquery.Document, error) {
 	}
 
 	return doc, nil
-}
-
-func ToImage(reader io.ReadCloser) (image.Image, error) {
-	defer reader.Close()
-
-	picture, _, err := image.Decode(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse into image!\n%w", err)
-	}
-
-	return picture, nil
 }
 
 func GetTitle(path string) (string, error) {
