@@ -66,6 +66,24 @@ type Post struct {
 	Author   Channel
 }
 
+type Badge struct {
+	Label  string
+	Image  string
+	Author Channel
+}
+
+type Stamp struct {
+	Label  string
+	Image  string
+	Author Channel
+}
+
+type Perk struct {
+	Title       string
+	Description string
+	Author      Channel
+}
+
 type Renderer struct {
 	Type     string
 	Images   []string
@@ -93,6 +111,11 @@ type ZipPlaylist struct {
 type ZipComment struct {
 	Old *Comment
 	New *Comment
+}
+
+type ZipPerk struct {
+	Old *Perk
+	New *Perk
 }
 
 func (channel Channel) Map() map[string]any {
@@ -212,6 +235,34 @@ func (post Post) Map() map[string]any {
 	return postMap
 }
 
+func (badge Badge) Map() map[string]any {
+	badgeMap := map[string]any{
+		"ChannelId": badge.Author.Id,
+		"Label":     badge.Label,
+	}
+
+	return badgeMap
+}
+
+func (stamp Stamp) Map() map[string]any {
+	stampMap := map[string]any{
+		"ChannelId": stamp.Author.Id,
+		"Label":     stamp.Label,
+	}
+
+	return stampMap
+}
+
+func (perk Perk) Map() map[string]any {
+	perkMap := map[string]any{
+		"ChannelId":   perk.Author.Id,
+		"Title":       perk.Title,
+		"Description": perk.Description,
+	}
+
+	return perkMap
+}
+
 func (choice Choice) Map() map[string]any {
 	choiceMap := map[string]any{
 		"Type": choice.Type,
@@ -315,6 +366,38 @@ func GroupComment(old, new []Comment) []ZipComment {
 			result = append(result, ZipComment{Old: &oldComment, New: nil})
 		} else if !ok1 && ok2 {
 			result = append(result, ZipComment{Old: nil, New: &newComment})
+		}
+	}
+
+	return result
+}
+
+func GroupPerk(old, new []Perk) []ZipPerk {
+	result := []ZipPerk{}
+
+	perkMap := map[string]bool{}
+	oldMap, newMap := map[string]Perk{}, map[string]Perk{}
+
+	for _, perk := range old {
+		perkMap[perk.Title] = true
+		oldMap[perk.Title] = perk
+	}
+
+	for _, perk := range new {
+		perkMap[perk.Title] = true
+		newMap[perk.Title] = perk
+	}
+
+	for perkTitle := range perkMap {
+		oldPerk, ok1 := oldMap[perkTitle]
+		newPerk, ok2 := newMap[perkTitle]
+
+		if ok1 && ok2 {
+			result = append(result, ZipPerk{Old: &oldPerk, New: &newPerk})
+		} else if ok1 && !ok2 {
+			result = append(result, ZipPerk{Old: &oldPerk, New: nil})
+		} else if !ok1 && ok2 {
+			result = append(result, ZipPerk{Old: nil, New: &newPerk})
 		}
 	}
 

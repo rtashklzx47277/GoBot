@@ -4,15 +4,7 @@ import (
 	"GoBot/tools"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
-)
-
-var (
-	secure_3PSID      = os.Getenv("SECURE_3PSID")
-	secure_3PSIDTS    = os.Getenv("SECURE_3PSIDTS")
-	ErrorNoPost       = fmt.Errorf("doesn't have community post")
-	ErrorNoMembership = fmt.Errorf("membership is not yet available")
 )
 
 func GetCommunity(channelId string) ([]Post, error) {
@@ -39,9 +31,9 @@ func GetCommunity(channelId string) ([]Post, error) {
 
 	var posts []Post
 
-	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "社群")
+	tab, ok := getTab(jsonData.Get("contents").Get("twoColumnBrowseResultsRenderer").Get("tabs"), "Community", "社群")
 	if !ok {
-		return []Post{}, ErrorNoPost
+		return []Post{}, nil
 	}
 
 	for _, item := range tab.Get("tabRenderer").Get("content").Get("sectionListRenderer").Get("contents").Index(0).Get("itemSectionRenderer").Get("contents").JsonArray() {
@@ -69,9 +61,9 @@ func GetCommunity(channelId string) ([]Post, error) {
 	return posts, nil
 }
 
-func getTab(item *tools.Json, target string) (*tools.Json, bool) {
+func getTab(item *tools.Json, target ...string) (*tools.Json, bool) {
 	for _, tab := range item.JsonArray() {
-		if tab.Get("tabRenderer").Get("selected").Bool() && tab.Get("tabRenderer").Get("title").String() == target {
+		if tab.Get("tabRenderer").Get("selected").Bool() && tools.IsContain(target, tab.Get("tabRenderer").Get("title").String()) {
 			return tab, true
 		}
 	}

@@ -724,14 +724,8 @@ func YoutubeNotify(name string) {
 
 	postIds := db.Distinct("post", channelId)
 	posts, err := youtube.GetCommunity(channelId)
-	if errors.Is(err, youtube.ErrorNoPost) {
-		return
-	} else if err != nil {
+	if err != nil {
 		panic(err)
-	}
-
-	if len(posts) == 0 {
-		s.ChannelMessageSend(logChannelId, "Youtube會員Cookie可能已過期！")
 	}
 
 	for _, post := range posts {
@@ -752,7 +746,6 @@ func YoutubeNotify(name string) {
 			}
 
 			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("有新的%s社群投稿！ <%s>", description, post.Url))
-
 			db.Insert("Post", post.Map())
 
 			if post.Renderer.Type == "Poll" || post.Renderer.Type == "Quiz" {
@@ -762,6 +755,76 @@ func YoutubeNotify(name string) {
 					db.Insert("Choice", choiceMap)
 				}
 			}
+		}
+	}
+
+	if channelId != "UCrV1Hf5r8P148idjoSfrGEQ" {
+		return
+	}
+
+	badgeIds := db.Distinct("badge", channelId)
+	stampIds := db.Distinct("stamp", channelId)
+	oldPerks := db.FindPerks(channelId)
+	badges, stamps, newPerks, err := youtube.GetMemberShip(channelId)
+	if errors.Is(err, youtube.ErrorNoMembership) {
+		s.ChannelMessageSend(logChannelId, "Youtube會員Cookie可能已過期！")
+	} else if err != nil {
+		panic(err)
+	}
+
+	for _, badge := range badges {
+		if !tools.IsContain(badgeIds, badge.Label) {
+			err := tools.ImageDownload(badge.Image, "Youtube", channelId, "Badge", badge.Label)
+			if err != nil {
+				panic(err)
+			}
+
+			baseEmbed.New("", "", fmt.Sprintf("新增了第 %s 個月的徽章", badge.Label), badge.Image).Send(s, discordChannelId)
+			db.Insert("Badge", badge.Map())
+		} else {
+			if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Badge/%s.jpg", channelId, badge.Label), badge.Image); err == nil && check == 0 {
+				err = tools.ImageDownload(badge.Image, "Youtube", channelId, "Badge", badge.Label)
+				if err != nil {
+					panic(err)
+				}
+
+				baseEmbed.New("", "", fmt.Sprintf("第 %s 個月的徽章更新了！", badge.Label), image).Send(s, discordChannelId)
+			} else if err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	for _, stamp := range stamps {
+		if !tools.IsContain(stampIds, stamp.Label) {
+			err := tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
+			if err != nil {
+				panic(err)
+			}
+
+			baseEmbed.New("", "", "新增了自訂表情符號", stamp.Image).Send(s, discordChannelId)
+			db.Insert("Stamp", stamp.Map())
+		} else {
+			if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Stamp/%s.jpg", channelId, stamp.Label), stamp.Image); err == nil && check == 0 {
+				err = tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
+				if err != nil {
+					panic(err)
+				}
+
+				baseEmbed.New("", "", "自訂表情符號更新了！", image).Send(s, discordChannelId)
+			} else if err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	for _, perks := range youtube.GroupPerk(oldPerks, newPerks) {
+		if perks.New == nil {
+			baseEmbed.New(perks.Old.Title, "", "會員福利已被刪除！", "").Send(s, discordChannelId)
+			db.Delete("Perk", "WHERE ChannelId = ? AND Title = ?", channelId, perks.Old.Title)
+		} else if perks.Old == nil {
+			baseEmbed.New(perks.New.Title, "", "新增了會員福利！", "").Send(s, discordChannelId)
+			db.Insert("Perk", perks.New.Map())
 		}
 	}
 }

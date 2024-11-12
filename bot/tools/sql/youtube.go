@@ -212,6 +212,33 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 	return comments
 }
 
+func (mySQL *MySQL) FindPerks(channelId string) []youtube.Perk {
+	query := "SELECT Title, Description FROM Perk WHERE channelId = ?"
+	rows, err := mySQL.db.Query(query, channelId)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+	defer rows.Close()
+
+	var perks []youtube.Perk
+
+	for rows.Next() {
+		var perk youtube.Perk
+		var description sql.NullString
+
+		err := rows.Scan(&perk.Title, &description)
+		if err != nil {
+			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+		}
+
+		perk.Description = handleNullString(description)
+
+		perks = append(perks, perk)
+	}
+
+	return perks
+}
+
 func (mySQL *MySQL) Distinct(target, id string) []string {
 	var query string
 	var values []any
@@ -237,6 +264,12 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 		values = append(values, id)
 	case "post":
 		query = "SELECT DISTINCT Id FROM Post WHERE ChannelId = ?"
+		values = append(values, id)
+	case "badge":
+		query = "SELECT DISTINCT Label FROM Badge WHERE ChannelId = ?"
+		values = append(values, id)
+	case "stamp":
+		query = "SELECT DISTINCT Label FROM Stamp WHERE ChannelId = ?"
 		values = append(values, id)
 	case "comment":
 		query = "SELECT DISTINCT Comment.Id FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id WHERE Video.ChannelId = ? AND ParentId IS NULL"

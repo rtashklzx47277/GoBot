@@ -115,7 +115,6 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return err
 	}
 
-	// file, err := os.Create(fmt.Sprintf("C:/Users/Derek/Downloads/Workspace/GoBot/bot/media/%s.jpg", strings.Join(filePath, "/")))
 	file, err := os.Create(fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/")))
 	if err != nil {
 		return fmt.Errorf("failed to create file!\n%w", err)
