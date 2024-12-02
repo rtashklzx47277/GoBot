@@ -2,6 +2,7 @@ package youtube
 
 import (
 	"GoBot/tools"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -50,7 +51,7 @@ func GetMemberShip(channelId string) ([]Badge, []Stamp, []Perk, error) {
 		if renderer.Exist("loyaltyBadges") {
 			for _, item := range renderer.Get("loyaltyBadges").Get("sponsorshipsLoyaltyBadgesRenderer").Get("loyaltyBadges").JsonArray() {
 				badge := Badge{
-					Label: parseLabel(parseRun(item.Get("sponsorshipsLoyaltyBadgeRenderer").Get("title"))),
+					Label: parseLabel(ParseRun(item.Get("sponsorshipsLoyaltyBadgeRenderer").Get("title"))),
 					Image: getThumbnail(item.Get("sponsorshipsLoyaltyBadgeRenderer").Get("icon")),
 				}
 
@@ -71,8 +72,8 @@ func GetMemberShip(channelId string) ([]Badge, []Stamp, []Perk, error) {
 			}
 		} else {
 			perk := Perk{
-				Title:       parseRun(renderer.Get("title")),
-				Description: parseRun(renderer.Get("description")),
+				Title:       ParseRun(renderer.Get("title")),
+				Description: ParseRun(renderer.Get("description")),
 			}
 
 			perk.Author.Id = channelId
@@ -90,4 +91,29 @@ func parseLabel(label string) string {
 	}
 
 	return strings.Split(label, " ")[1]
+}
+
+func ParseRun(renderer *tools.Json) string {
+	if renderer.Exist("simpleText") {
+		return renderer.Get("simpleText").String()
+	}
+
+	var text string
+
+	for _, run := range renderer.Get("runs").JsonArray() {
+		if run.Exist("text") {
+			text += run.Get("text").String()
+		} else if run.Exist("emoji") {
+			text += run.Get("emoji").Get("shortcuts").Index(0).String()
+		} else {
+			fmt.Println(ToJSON(run))
+		}
+	}
+
+	return text
+}
+
+func ToJSON(item *tools.Json) string {
+	jsonBytes, _ := json.Marshal(item)
+	return string(jsonBytes)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"GoBot/tools"
+	"GoBot/tools/youtube"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -38,10 +39,12 @@ func LiveChat(videoId, discordChannelId string) {
 		if errors.Is(err, ErrorNoChat) {
 			fmt.Printf("直播影片的聊天室已停用，重新嘗試讀取聊天室 (%s)\n", videoId)
 
-			if db.FindVideoStatus(videoId) == 0 {
+			if db.CheckVideoStatus(videoId) == 0 {
 				check = false
 				break
 			}
+		} else if db.CheckVideoMember(videoId) {
+			return
 		} else {
 			s.ChannelMessageSend(testChannelId, fmt.Sprintf("failed to get \"%s\" parameters: %v\n", videoId, err))
 		}
@@ -189,7 +192,7 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 		} else if item.Exist("liveChatPlaceholderItemRenderer") {
 		} else {
 			fmt.Println("Error getting renderer from addChatItemAction!")
-			fmt.Println(toJSON(item))
+			fmt.Println(youtube.ToJSON(item))
 		}
 	} else if action.Exist("addLiveChatTickerItemAction") {
 		item := action.Get("addLiveChatTickerItemAction").Get("item")
@@ -205,11 +208,11 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer"), "GiftSend", videoId, channelTitle, discordChannelId)
 			} else {
 				fmt.Println("Error getting renderer from liveChatTickerSponsorItemRenderer!")
-				fmt.Println(toJSON(item))
+				fmt.Println(youtube.ToJSON(item))
 			}
 		} else {
 			fmt.Println("Error getting renderer from addLiveChatTickerItemAction!")
-			fmt.Println(toJSON(item))
+			fmt.Println(youtube.ToJSON(item))
 		}
 	} else if action.Exist("updateLiveChatPollAction") {
 		liveChatPoll(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
@@ -222,7 +225,7 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 		} else if item.Exist("liveChatBannerChatSummaryRenderer") {
 		} else {
 			fmt.Println("Error getting renderer from addBannerToLiveChatCommand!")
-			fmt.Println(toJSON(item))
+			fmt.Println(youtube.ToJSON(item))
 		}
 	} else if action.Exist("removeBannerForLiveChatCommand") { // 取消釘選
 	} else if action.Exist("liveChatReportModerationStateCommand") {
@@ -232,7 +235,7 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 	} else if action.Exist("replaceChatItemAction") {
 	} else {
 		fmt.Println("Error getting action!")
-		fmt.Println(toJSON(action))
+		fmt.Println(youtube.ToJSON(action))
 	}
 }
 
@@ -309,9 +312,9 @@ func liveChatPoll(renderer *tools.Json) {
 	}
 	messageIdList = append(messageIdList, id)
 
-	text := fmt.Sprintf("已發起投票: %s", parseRun(renderer.Get("header").Get("pollHeaderRenderer").Get("pollQuestion")))
+	text := fmt.Sprintf("已發起投票: %s", youtube.ParseRun(renderer.Get("header").Get("pollHeaderRenderer").Get("pollQuestion")))
 	for _, choice := range renderer.Get("choices").JsonArray() {
-		text += fmt.Sprintf("\n- %s", parseRun(choice.Get("text")))
+		text += fmt.Sprintf("\n- %s", youtube.ParseRun(choice.Get("text")))
 	}
 
 	s.ChannelMessageSend(testChannelId, text)
@@ -347,12 +350,12 @@ func getMessage(renderer *tools.Json) string {
 			} else if run.Exist("emoji") {
 				text += run.Get("emoji").Get("shortcuts").Index(0).String()
 			} else {
-				fmt.Println(toJSON(run))
+				fmt.Println(youtube.ToJSON(run))
 			}
 		}
 
 		if renderer.Exist("subtext") {
-			text += "\n" + parseRun(renderer.Get("subtext"))
+			text += "\n" + youtube.ParseRun(renderer.Get("subtext"))
 		}
 
 		return text
@@ -363,38 +366,18 @@ func getMessage(renderer *tools.Json) string {
 	}
 
 	if renderer.Exist("headerPrimaryText") {
-		return parseRun(renderer.Get("headerPrimaryText"))
+		return youtube.ParseRun(renderer.Get("headerPrimaryText"))
 	}
 
 	if renderer.Exist("headerSubtext") {
-		return parseRun(renderer.Get("headerSubtext"))
+		return youtube.ParseRun(renderer.Get("headerSubtext"))
 	}
 
 	if renderer.Exist("primaryText") {
-		return parseRun(renderer.Get("primaryText"))
+		return youtube.ParseRun(renderer.Get("primaryText"))
 	}
 
 	return ""
-}
-
-func parseRun(renderer *tools.Json) string {
-	if renderer.Exist("simpleText") {
-		return renderer.Get("simpleText").String()
-	}
-
-	var text string
-
-	for _, run := range renderer.Get("runs").JsonArray() {
-		if run.Exist("text") {
-			text += run.Get("text").String()
-		} else if run.Exist("emoji") {
-			text += run.Get("emoji").Get("shortcuts").Index(0).String()
-		} else {
-			fmt.Println(toJSON(run))
-		}
-	}
-
-	return text
 }
 
 func check(channelId, badge string) bool {
@@ -409,11 +392,6 @@ func check(channelId, badge string) bool {
 	}
 
 	return false
-}
-
-func toJSON(item *tools.Json) string {
-	jsonBytes, _ := json.Marshal(item)
-	return string(jsonBytes)
 }
 
 func (message Message) Map() map[string]any {

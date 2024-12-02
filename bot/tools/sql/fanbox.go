@@ -23,7 +23,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 
 	user.Icon = fmt.Sprintf("/bot/media/Fanbox/%s/Icon/%s.jpg", user.Id, user.Id)
 	user.Banner = fmt.Sprintf("/bot/media/Fanbox/%s/Banner/%s.jpg", user.Id, user.Id)
-	user.Url = fmt.Sprintf("https://www.fanbox.cc/@%s", user.CreatorId)
+	user.Url = fmt.Sprintf("https://www.pixiv.net/fanbox/creator/%s", user.Id)
 
 	query = "SELECT Link FROM FanboxLink WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)

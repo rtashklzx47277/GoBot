@@ -38,7 +38,7 @@ func GetUser(userId string) (User, error) {
 		Banner:      item.Get("coverImageUrl").String(),
 	}
 
-	user.Url = fmt.Sprintf("https://www.fanbox.cc/@%s", user.CreatorId)
+	user.Url = fmt.Sprintf("https://www.pixiv.net/fanbox/creator/%s", user.Id)
 
 	if user.Icon == "null" {
 		user.Icon = ""

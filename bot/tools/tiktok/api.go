@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+var ErrorNoUserData = fmt.Errorf("failed to get user data")
+
 func getData(path string) (string, error) {
 	reader, err := tools.Get(path).Do()
 	if err != nil {
@@ -28,7 +30,7 @@ func GetUser(userId string) (User, error) {
 
 	match, ok := tools.Regexp(data, `"user":(.*),"stats"`)
 	if !ok {
-		return User{}, fmt.Errorf("failed to get user data!\n%s", data)
+		return User{}, ErrorNoUserData
 	}
 
 	jsonData, err := tools.StringToJson(match)

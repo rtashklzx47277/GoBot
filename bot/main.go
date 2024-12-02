@@ -703,7 +703,7 @@ func YoutubeNotify(name string) {
 		if !tools.IsContain(commentIds, comment.Id) {
 			comment = db.CompelteComment(comment)
 			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
-				comment.Author.Title, comment.Author.Url, channel.Title, channel.Url, comment.Video.Title, comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
+				db.FindChannelTitle(comment.Author.Id), comment.Author.Url, channel.Title, channel.Url, db.FindVideoTitle(comment.Video.Id), comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
 			db.Insert("Comment", comment.Map())
 		}
 
@@ -716,7 +716,7 @@ func YoutubeNotify(name string) {
 			if !tools.IsContain(replyIds, reply.Id) {
 				reply = db.CompelteComment(reply)
 				s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
-					reply.Author.Title, reply.Author.Url, channel.Title, channel.Url, reply.Video.Title, reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
+					db.FindChannelTitle(reply.Author.Id), reply.Author.Url, channel.Title, channel.Url, db.FindVideoTitle(reply.Video.Id), reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
 				db.Insert("Comment", reply.Map())
 			}
 		}
@@ -768,6 +768,7 @@ func YoutubeNotify(name string) {
 	badges, stamps, newPerks, err := youtube.GetMemberShip(channelId)
 	if errors.Is(err, youtube.ErrorNoMembership) {
 		s.ChannelMessageSend(logChannelId, "Youtube會員Cookie可能已過期！")
+		return
 	} else if err != nil {
 		panic(err)
 	}
@@ -1221,7 +1222,9 @@ func TiktokNotify(name string) {
 	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], testChannelId //tools.UserData[name]["Tiktok"]["DiscordChannelId"]
 
 	user, err := tiktok.GetUser(userUniqueId)
-	if err != nil {
+	if errors.Is(err, tiktok.ErrorNoUserData) {
+		fmt.Printf("無法順利取得 %s 的 Tiktok 資料！\n", name)
+	} else if err != nil {
 		panic(err)
 	}
 

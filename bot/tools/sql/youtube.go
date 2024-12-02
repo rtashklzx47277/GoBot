@@ -333,8 +333,31 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 	return comment
 }
 
-func (mySQL *MySQL) FindVideoStatus(videoId string) int {
-	var video youtube.Video
+func (mySQL *MySQL) FindChannelTitle(channelId string) string {
+	var title sql.NullString
+
+	query := "SELECT Title FROM Channel WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, channelId).Scan(&title)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+
+	return handleNullString(title)
+}
+
+func (mySQL *MySQL) FindVideoTitle(videoId string) string {
+	var title sql.NullString
+
+	query := "SELECT Title FROM Video WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, videoId).Scan(&title)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+
+	return handleNullString(title)
+}
+
+func (mySQL *MySQL) CheckVideoStatus(videoId string) int {
 	var liveStatus sql.NullInt64
 
 	query := "SELECT LiveStatus FROM Video WHERE Id = ?"
@@ -343,7 +366,17 @@ func (mySQL *MySQL) FindVideoStatus(videoId string) int {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
-	video.LiveStatus = handleNullInt(liveStatus)
+	return handleNullInt(liveStatus)
+}
 
-	return video.LiveStatus
+func (mySQL *MySQL) CheckVideoMember(videoId string) bool {
+	var member sql.NullBool
+
+	query := "SELECT Member FROM Video WHERE Id = ?"
+	err := mySQL.db.QueryRow(query, videoId).Scan(&member)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
+	}
+
+	return handleNullBool(member)
 }

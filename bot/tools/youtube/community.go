@@ -177,17 +177,3 @@ func getThumbnail(item *tools.Json) string {
 
 	return strings.Split(url, "=w")[0]
 }
-
-func parseRun(renderer *tools.Json) string {
-	if renderer.Exist("simpleText") {
-		return renderer.Get("simpleText").String()
-	}
-
-	var text string
-
-	for _, run := range renderer.Get("runs").JsonArray() {
-		text += run.Get("text").String()
-	}
-
-	return text
-}

@@ -103,6 +103,14 @@ func handleNullInt(d sql.NullInt64) int {
 	return 0
 }
 
+func handleNullBool(d sql.NullBool) bool {
+	if d.Valid {
+		return d.Bool
+	}
+
+	return false
+}
+
 func stringToDuration(s string) tools.Duration {
 	ds, err := time.ParseDuration(fmt.Sprintf("%ss", strings.Replace(strings.Replace(s, ":", "h", 1), ":", "m", 1)))
 	if err != nil {
