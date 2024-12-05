@@ -120,7 +120,7 @@ func GetPost(userId string) ([]Post, error) {
 			UserId:        userId,
 			Title:         item.Get("title").String(),
 			Fee:           item.Get("feeRequired").Int(),
-			Image:         item.Get("cover").String(),
+			Image:         item.Get("cover").Get("url").String(),
 			PublishedTime: item.Get("publishedDatetime").Time(),
 			UpdatedTime:   item.Get("updatedDatetime").Time(),
 		}

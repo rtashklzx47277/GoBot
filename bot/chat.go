@@ -65,7 +65,7 @@ func LiveChat(videoId, discordChannelId string) {
 
 	for {
 		if count == 5 {
-			s.ChannelMessageSend(testChannelId, fmt.Sprintf("%s 聊天室已關閉或直播已轉為會員限定模式！", videoId))
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("**[%s](<%s>)** 聊天室已關閉或直播已轉為會員限定模式！", db.FindVideoTitle(videoId), fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)))
 			break
 		}
 

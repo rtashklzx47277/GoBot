@@ -1224,6 +1224,7 @@ func TiktokNotify(name string) {
 	user, err := tiktok.GetUser(userUniqueId)
 	if errors.Is(err, tiktok.ErrorNoUserData) {
 		fmt.Printf("無法順利取得 %s 的 Tiktok 資料！\n", name)
+		return
 	} else if err != nil {
 		panic(err)
 	}

@@ -119,7 +119,13 @@ func (js *Json) Split(sep string) []string {
 func (js *Json) Image() string {
 	for _, size := range []string{"maxres", "standard", "high", "medium", "default"} {
 		if js.Exist(size) {
-			return strings.Replace(js.Get(size).Get("url").Split("=s")[0], "_live.", ".", 1)
+			s := strings.Replace(js.Get(size).Get("url").String(), "_live.", ".", 1)
+
+			if strings.Contains(s, "=s") {
+				s = strings.Split(s, "=s")[0] + "=s0"
+			}
+
+			return s
 		}
 	}
 
