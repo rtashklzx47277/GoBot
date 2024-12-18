@@ -26,12 +26,12 @@ type Message struct {
 var ErrorNoChat = fmt.Errorf("chat is not yet available")
 
 func LiveChat(videoId, discordChannelId string) {
-	var channelTitle, apiKey, continuation string
+	var apiKey, continuation string
 	var err error
 	check := true
 
 	for {
-		channelTitle, apiKey, continuation, err = getParameters(videoId)
+		apiKey, continuation, err = getParameters(videoId)
 		if err == nil {
 			break
 		}
@@ -49,7 +49,7 @@ func LiveChat(videoId, discordChannelId string) {
 			s.ChannelMessageSend(testChannelId, fmt.Sprintf("failed to get \"%s\" parameters: %v\n", videoId, err))
 		}
 
-		time.Sleep(300 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 
 	if !check {
@@ -90,45 +90,40 @@ func LiveChat(videoId, discordChannelId string) {
 		}
 
 		for _, action := range data.Get("continuationContents").Get("liveChatContinuation").Get("actions").JsonArray() {
-			getMessageData(action, videoId, channelTitle, discordChannelId)
+			getMessageData(action, videoId, discordChannelId)
 		}
 
 		count = 0
 	}
 }
 
-func getParameters(videoId string) (string, string, string, error) {
+func getParameters(videoId string) (string, string, error) {
 	url := fmt.Sprintf("https://www.youtube.com/live_chat?v=%s", videoId)
-	reader, err := tools.Get(url).AddHeader("User-Agent", tools.UserAgent).Do()
+	reader, err := tools.Get(url).AddCookie("__Secure-3PSID", secure_3PSID).AddCookie("__Secure-3PSIDTS", secure_3PSIDTS).AddHeader("User-Agent", tools.UserAgent).Do()
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 
 	data, err := tools.ToString(reader)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 
 	if strings.Contains(data, "這部直播影片的聊天室已停用") {
-		return "", "", "", ErrorNoChat
-	}
-
-	channelTitle, ok := tools.Regexp(data, `{"authorName":{"simpleText":"(.+?)"}`)
-	if !ok {
-		return "", "", "", fmt.Errorf("failed to get channel title!\n%w", err)
+		return "", "", ErrorNoChat
 	}
 
 	apiKey, ok := tools.Regexp(data, `"INNERTUBE_API_KEY":"([A-z0-9-]*)`)
 	if !ok {
-		return "", "", "", fmt.Errorf("failed to get apiKey!\n%w", err)
+		return "", "", fmt.Errorf("failed to get apiKey!\n%w", err)
 	}
 
 	continuation, ok := tools.Regexp(data, `"continuation":"([A-z0-9-%]*)`)
 	if !ok {
-		return "", "", "", fmt.Errorf("failed to get continuation!\n%w", err)
+		return "", "", fmt.Errorf("failed to get continuation!\n%w", err)
 	}
 
-	return channelTitle, apiKey, continuation, nil
+	return apiKey, continuation, nil
 }
 
 func getChatData(apiKey, continuation string) (*tools.Json, error) {
@@ -170,22 +165,26 @@ func getPayload(continuation string) (io.Reader, error) {
 	return io.NopCloser(bytes.NewReader(payloadBytes)), nil
 }
 
-func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId string) {
+func getMessageData(action *tools.Json, videoId, discordChannelId string) {
+	if action.Exist("replayChatItemAction") {
+		action = action.Get("replayChatItemAction").Get("actions").Index(0)
+	}
+
 	if action.Exist("addChatItemAction") {
 		item := action.Get("addChatItemAction").Get("item")
 
 		if item.Exist("liveChatTextMessageRenderer") {
-			rendererProcessor(item.Get("liveChatTextMessageRenderer"), "TextMessage", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatTextMessageRenderer"), "TextMessage", videoId, discordChannelId)
 		} else if item.Exist("liveChatPaidMessageRenderer") {
-			rendererProcessor(item.Get("liveChatPaidMessageRenderer"), "PaidMessage", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatPaidMessageRenderer"), "PaidMessage", videoId, discordChannelId)
 		} else if item.Exist("liveChatPaidStickerRenderer") {
-			rendererProcessor(item.Get("liveChatPaidStickerRenderer"), "PaidSticker", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatPaidStickerRenderer"), "PaidSticker", videoId, discordChannelId)
 		} else if item.Exist("liveChatMembershipItemRenderer") {
-			rendererProcessor(item.Get("liveChatMembershipItemRenderer"), "Membership", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatMembershipItemRenderer"), "Membership", videoId, discordChannelId)
 		} else if item.Exist("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer") {
-			rendererProcessor(item.Get("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer"), "GiftSend", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer"), "GiftSend", videoId, discordChannelId)
 		} else if item.Exist("liveChatSponsorshipsGiftRedemptionAnnouncementRenderer") {
-			rendererProcessor(item.Get("liveChatSponsorshipsGiftRedemptionAnnouncementRenderer"), "GiftReceive", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatSponsorshipsGiftRedemptionAnnouncementRenderer"), "GiftReceive", videoId, discordChannelId)
 		} else if item.Exist("liveChatModeChangeMessageRenderer") {
 			liveChatSetting(item.Get("liveChatModeChangeMessageRenderer"))
 		} else if item.Exist("liveChatViewerEngagementMessageRenderer") {
@@ -198,14 +197,14 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 		item := action.Get("addLiveChatTickerItemAction").Get("item")
 
 		if item.Exist("liveChatTickerPaidMessageItemRenderer") {
-			rendererProcessor(item.Get("liveChatTickerPaidMessageItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidMessageRenderer"), "PaidMessage", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatTickerPaidMessageItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidMessageRenderer"), "PaidMessage", videoId, discordChannelId)
 		} else if item.Exist("liveChatTickerPaidStickerItemRenderer") {
-			rendererProcessor(item.Get("liveChatTickerPaidStickerItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidStickerRenderer"), "PaidSticker", videoId, channelTitle, discordChannelId)
+			rendererProcessor(item.Get("liveChatTickerPaidStickerItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatPaidStickerRenderer"), "PaidSticker", videoId, discordChannelId)
 		} else if item.Exist("liveChatTickerSponsorItemRenderer") {
 			if item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Exist("liveChatMembershipItemRenderer") {
-				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatMembershipItemRenderer"), "Membership", videoId, channelTitle, discordChannelId)
+				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Get("liveChatMembershipItemRenderer"), "Membership", videoId, discordChannelId)
 			} else if item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Exist("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer") {
-				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer"), "GiftSend", videoId, channelTitle, discordChannelId)
+				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer"), "GiftSend", videoId, discordChannelId)
 			} else {
 				fmt.Println("Error getting renderer from liveChatTickerSponsorItemRenderer!")
 				fmt.Println(youtube.ToJSON(item))
@@ -239,7 +238,7 @@ func getMessageData(action *tools.Json, videoId, channelTitle, discordChannelId 
 	}
 }
 
-func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle, discordChannelId string) {
+func rendererProcessor(renderer *tools.Json, form, videoId, discordChannelId string) {
 	authorId := renderer.Get("authorExternalChannelId").String()
 	messageId := renderer.Get("id").String()
 
@@ -275,30 +274,24 @@ func rendererProcessor(renderer *tools.Json, form, videoId, channelTitle, discor
 	var template string
 	authorName := renderer.Get("authorName").Get("simpleText").String()
 	authorUrl := fmt.Sprintf("https://www.youtube.com/channel/%s", authorId)
+	videoTitle := db.FindVideoTitle(videoId)
 	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)
 
 	switch form {
 	case "TextMessage":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中留言： `%s`",
-			authorName, authorUrl, channelTitle, videoUrl, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)**： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
 	case "PaidMessage":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級留言(%s)： `%s`",
-			authorName, authorUrl, channelTitle, videoUrl, message.Amount, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 發送了超級留言(%s)： `%s` ([%s](<%s>))", authorName, authorUrl, message.Amount, message.Text, videoTitle, videoUrl)
 	case "PaidSticker":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中購買超級貼圖： `%s`",
-			authorName, authorUrl, channelTitle, videoUrl, message.Text)
-	case "Membership":
-		template = fmt.Sprintf("**[%s](<%s>)** 成為了 **[%s](<%s>)** 的頻道會員(%s)！",
-			authorName, authorUrl, channelTitle, videoUrl, message.Badge)
+		template = fmt.Sprintf("**[%s](<%s>)** 發送了超級貼圖： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
 	case "Milestone":
-		template = fmt.Sprintf("**[%s](<%s>)** 在 **[%s](<%s>)** 的聊天室中使用里程碑紀念發言： `%s`",
-			authorName, authorUrl, channelTitle, videoUrl, message.Text)
+		template = fmt.Sprintf("**[%s](<%s>)** 發送了里程碑紀念留言： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
+	case "Membership":
+		template = fmt.Sprintf("**[%s](<%s>)** 成為了頻道會員(%s)！ ([%s](<%s>))", authorName, authorUrl, message.Badge, videoTitle, videoUrl)
 	case "GiftSend":
-		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份 **[%s](<%s>)** 的頻道會員！",
-			authorName, authorUrl, strings.Split(message.Text, " ")[1], channelTitle, videoUrl)
+		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份頻道會員！ ([%s](<%s>))", authorName, authorUrl, strings.Split(message.Text, " ")[1], videoTitle, videoUrl)
 	case "GiftReceive":
-		template = fmt.Sprintf("**[%s](<%s>)** 收到了 **[%s](<%s>)** 的頻道會員！",
-			authorName, authorUrl, channelTitle, videoUrl)
+		template = fmt.Sprintf("**[%s](<%s>)** 收到了的頻道會員贈禮！ ([%s](<%s>))", authorName, authorUrl, videoTitle, videoUrl)
 	}
 
 	s.ChannelMessageSend(discordChannelId, template)
@@ -337,7 +330,7 @@ func getBadge(renderer *tools.Json) string {
 		badge += badgeData.Get("liveChatAuthorBadgeRenderer").Get("tooltip").String() + " "
 	}
 
-	return badge
+	return badge[:len(badge)-1]
 }
 
 func getMessage(renderer *tools.Json) string {
