@@ -152,6 +152,9 @@ var (
 				"Id":               "80355000",
 				"DiscordChannelId": "1300328308705198132",
 			},
+			"Site": {
+				"DiscordChannelId": "1320729508688695338",
+			},
 		},
 		"Kuroa": {
 			"Youtube": {

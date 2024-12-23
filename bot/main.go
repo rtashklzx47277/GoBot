@@ -248,6 +248,7 @@ var (
 
 func main() {
 	initial()
+
 	getChat("Aqua", "Shion", "Sakuna")
 
 	runGo(YoutubeStreamNotify, 30, "Sakuna")
@@ -266,6 +267,7 @@ func main() {
 
 	runGo(Collab, 600, "Aqua", "Shion")
 	runGo(News, 600, "Aqua", "Shion")
+	runGo(Site, 300, "Sakuna")
 
 	select {}
 }
@@ -1522,6 +1524,41 @@ func News(name string) {
 			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", news.Title, news.Url))
 			db.Insert("News", news.Map())
 		}
+	}
+}
+
+func Site(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Site", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Site")
+
+	discordChannelId := tools.UserData[name]["Site"]["DiscordChannelId"]
+
+	HPId, radioId := db.FindArticleId()
+
+	articles, err := tools.GetHP(HPId)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, article := range articles {
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", article.Title, article.Url))
+		db.Insert("Article", article.Map())
+	}
+
+	articles, err = tools.GetRadio(radioId)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, article := range articles {
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", article.Title, article.Url))
+		db.Insert("Article", article.Map())
 	}
 }
 

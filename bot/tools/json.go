@@ -180,12 +180,15 @@ func (js *Json) Time() Time {
 		return Time{}
 	}
 
-	ts, err := time.Parse(time.RFC3339, js.String())
-	if err != nil {
-		return Time{}
+	if ts, err := time.Parse(time.RFC3339, js.String()); err == nil {
+		return Time(ts)
+	} else if ts, err := time.Parse("2006-01-02 15:04:05", js.String()); err == nil {
+		return Time(ts)
+	} else if ts, err := time.Parse("2006-01-02", js.String()); err == nil {
+		return Time(ts)
 	}
 
-	return Time(ts)
+	return Time{}
 }
 
 func (js *Json) Duration() Duration {
