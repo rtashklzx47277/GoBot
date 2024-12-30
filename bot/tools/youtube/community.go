@@ -172,8 +172,8 @@ func getThumbnail(item *tools.Json) string {
 	url := item.Get("thumbnails").Index(-1).Get("url").String()
 
 	if strings.Contains(url, "=s") {
-		return strings.Split(url, "=s")[0]
+		return strings.Split(url, "=s")[0] + "=s0"
 	}
 
-	return strings.Split(url, "=w")[0]
+	return strings.Split(url, "=w")[0] + "=w0"
 }
