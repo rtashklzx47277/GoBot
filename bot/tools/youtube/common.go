@@ -168,21 +168,15 @@ func (video Video) Map() map[string]any {
 		}
 
 		if video.Live {
-			videoMap["ScheduledTime"] = video.ScheduledTime.String()
+			videoMap["CreatedTime"], videoMap["ScheduledTime"] = video.PublishedTime.String(), video.ScheduledTime.String()
 		} else {
-			videoMap["ScheduledTime"] = nil
+			videoMap["CreatedTime"], videoMap["ScheduledTime"] = nil, nil
 		}
 
 		if video.StartTime != (tools.Time{}) {
-			videoMap["StartTime"] = video.StartTime.String()
+			videoMap["StartTime"], videoMap["EndTime"] = video.StartTime.String(), video.EndTime.String()
 		} else {
-			videoMap["StartTime"] = nil
-		}
-
-		if video.EndTime != (tools.Time{}) {
-			videoMap["EndTime"] = video.EndTime.String()
-		} else {
-			videoMap["EndTime"] = nil
+			videoMap["StartTime"], videoMap["EndTime"] = nil, nil
 		}
 	}
 

@@ -266,7 +266,7 @@ func main() {
 	runGo(YoutubeNotify, 1800, "Aqua")
 
 	runGo(Collab, 600, "Aqua", "Shion")
-	runGo(News, 600, "Aqua", "Shion")
+	// runGo(News, 600, "Aqua", "Shion")
 	runGo(Site, 300, "Sakuna")
 
 	select {}
@@ -529,14 +529,8 @@ func YoutubeNotify(name string) {
 			}
 
 			if old.PublishedTime != new.PublishedTime {
-				baseEmbed.New(new.Title, new.Url, "影片發佈時間更新了！", new.Thumbnail).Change(old.PublishedTime.String("full"), new.PublishedTime.String("full")).Send(s, testChannelId)
 				db.Update("Video", new.Id, "PublishedTime", new.PublishedTime.String())
 			}
-
-			// if old.ScheduledTime != new.ScheduledTime {
-			// 	baseEmbed.New(new.Title, new.Url, "影片預定時間更新了！", new.Thumbnail).Change(old.ScheduledTime.String("full"), new.ScheduledTime.String("full")).Send(s, testChannelId)
-			// 	db.Update("Video", new.Id, "ScheduledTime", new.ScheduledTime.String())
-			// }
 
 			// if old.StartTime != new.StartTime {
 			// 	baseEmbed.New(new.Title, new.Url, "影片開始時間更新了！", new.Thumbnail).Change(old.StartTime.String("full"), new.StartTime.String("full")).Send(s, testChannelId)

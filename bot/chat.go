@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -65,7 +66,7 @@ func LiveChat(videoId, discordChannelId string) {
 
 	for {
 		if count == 5 {
-			s.ChannelMessageSend(testChannelId, fmt.Sprintf("**[%s](<%s>)** 聊天室已關閉或直播已轉為會員限定模式！", db.FindVideoTitle(videoId), fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)))
+			s.ChannelMessageSend(testChannelId, fmt.Sprintf("**[%s](<%s>)** 聊天室已關閉或直播已轉為會員限定模式！", removeEmoji(db.FindVideoTitle(videoId)), fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)))
 			break
 		}
 
@@ -99,7 +100,7 @@ func LiveChat(videoId, discordChannelId string) {
 
 func getParameters(videoId string) (string, string, error) {
 	url := fmt.Sprintf("https://www.youtube.com/live_chat?v=%s", videoId)
-	reader, err := tools.Get(url).AddCookie("__Secure-3PSID", secure_3PSID).AddCookie("__Secure-3PSIDTS", secure_3PSIDTS).AddHeader("User-Agent", tools.UserAgent).Do()
+	reader, err := tools.Get(url).AddHeader("User-Agent", tools.UserAgent).Do()
 	if err != nil {
 		return "", "", err
 	}
@@ -190,8 +191,7 @@ func getMessageData(action *tools.Json, videoId, discordChannelId string) {
 		} else if item.Exist("liveChatViewerEngagementMessageRenderer") {
 		} else if item.Exist("liveChatPlaceholderItemRenderer") {
 		} else {
-			fmt.Println("Error getting renderer from addChatItemAction!")
-			fmt.Println(youtube.ToJSON(item))
+			fmt.Printf("Error getting renderer from addChatItemAction!\n%s\n", youtube.ToJSON(action))
 		}
 	} else if action.Exist("addLiveChatTickerItemAction") {
 		item := action.Get("addLiveChatTickerItemAction").Get("item")
@@ -206,12 +206,10 @@ func getMessageData(action *tools.Json, videoId, discordChannelId string) {
 			} else if item.Get("liveChatTickerSponsorItemRenderer").Get("showItemEndpoint").Get("showLiveChatItemEndpoint").Get("renderer").Exist("liveChatSponsorshipsGiftPurchaseAnnouncementRenderer") {
 				rendererProcessor(item.Get("liveChatTickerSponsorItemRenderer"), "GiftSend", videoId, discordChannelId)
 			} else {
-				fmt.Println("Error getting renderer from liveChatTickerSponsorItemRenderer!")
-				fmt.Println(youtube.ToJSON(item))
+				fmt.Printf("Error getting renderer from liveChatTickerSponsorItemRenderer!\n%s\n", youtube.ToJSON(item))
 			}
 		} else {
-			fmt.Println("Error getting renderer from addLiveChatTickerItemAction!")
-			fmt.Println(youtube.ToJSON(item))
+			fmt.Printf("Error getting renderer from addLiveChatTickerItemAction!\n%s\n", youtube.ToJSON(item))
 		}
 	} else if action.Exist("updateLiveChatPollAction") {
 		liveChatPoll(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
@@ -223,8 +221,7 @@ func getMessageData(action *tools.Json, videoId, discordChannelId string) {
 		if item.Exist("liveChatTextMessageRenderer") {
 		} else if item.Exist("liveChatBannerChatSummaryRenderer") {
 		} else {
-			fmt.Println("Error getting renderer from addBannerToLiveChatCommand!")
-			fmt.Println(youtube.ToJSON(item))
+			fmt.Printf("Error getting renderer from addBannerToLiveChatCommand!\n%s\n", youtube.ToJSON(item))
 		}
 	} else if action.Exist("removeBannerForLiveChatCommand") { // 取消釘選
 	} else if action.Exist("liveChatReportModerationStateCommand") {
@@ -233,8 +230,7 @@ func getMessageData(action *tools.Json, videoId, discordChannelId string) {
 	} else if action.Exist("closeLiveChatActionPanelAction") {
 	} else if action.Exist("replaceChatItemAction") {
 	} else {
-		fmt.Println("Error getting action!")
-		fmt.Println(youtube.ToJSON(action))
+		fmt.Printf("Error getting action!\n%s\n", youtube.ToJSON(action))
 	}
 }
 
@@ -257,7 +253,6 @@ func rendererProcessor(renderer *tools.Json, form, videoId, discordChannelId str
 	if !check(authorId, badge) || messageId == "" || tools.IsContain(messageIdList, messageId) {
 		return
 	}
-
 	messageIdList = append(messageIdList, messageId)
 
 	message := Message{
@@ -274,27 +269,27 @@ func rendererProcessor(renderer *tools.Json, form, videoId, discordChannelId str
 	var template string
 	authorName := renderer.Get("authorName").Get("simpleText").String()
 	authorUrl := fmt.Sprintf("https://www.youtube.com/channel/%s", authorId)
-	videoTitle := db.FindVideoTitle(videoId)
+	videoTitle := removeEmoji(db.FindVideoTitle(videoId))
 	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)
 
 	switch form {
 	case "TextMessage":
-		template = fmt.Sprintf("**[%s](<%s>)**： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
+		template = fmt.Sprintf("： `%s`", message.Text)
 	case "PaidMessage":
-		template = fmt.Sprintf("**[%s](<%s>)** 發送了超級留言(%s)： `%s` ([%s](<%s>))", authorName, authorUrl, message.Amount, message.Text, videoTitle, videoUrl)
+		template = fmt.Sprintf(" 發送了超級留言(%s)： `%s`", message.Amount, message.Text)
 	case "PaidSticker":
-		template = fmt.Sprintf("**[%s](<%s>)** 發送了超級貼圖： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
+		template = fmt.Sprintf(" 發送了超級貼圖： `%s`", message.Text)
 	case "Milestone":
-		template = fmt.Sprintf("**[%s](<%s>)** 發送了里程碑紀念留言： `%s` ([%s](<%s>))", authorName, authorUrl, message.Text, videoTitle, videoUrl)
+		template = fmt.Sprintf(" 發送了里程碑紀念留言： `%s`", message.Text)
 	case "Membership":
-		template = fmt.Sprintf("**[%s](<%s>)** 成為了頻道會員(%s)！ ([%s](<%s>))", authorName, authorUrl, message.Badge, videoTitle, videoUrl)
+		template = fmt.Sprintf(" 成為了頻道會員(%s)！", message.Badge)
 	case "GiftSend":
-		template = fmt.Sprintf("**[%s](<%s>)** 贈送了%s份頻道會員！ ([%s](<%s>))", authorName, authorUrl, strings.Split(message.Text, " ")[1], videoTitle, videoUrl)
+		template = fmt.Sprintf(" 贈送了%s份頻道會員！", strings.Split(message.Text, " ")[1])
 	case "GiftReceive":
-		template = fmt.Sprintf("**[%s](<%s>)** 收到了的頻道會員贈禮！ ([%s](<%s>))", authorName, authorUrl, videoTitle, videoUrl)
+		template = " 收到了的頻道會員贈禮！"
 	}
 
-	s.ChannelMessageSend(discordChannelId, template)
+	s.ChannelMessageSend(discordChannelId, fmt.Sprintf("**[%s](<%s>)**%s ([%s](<%s>))", authorName, authorUrl, template, videoTitle, videoUrl))
 	db.Insert("Message", message.Map())
 }
 
@@ -328,6 +323,10 @@ func getBadge(renderer *tools.Json) string {
 
 	for _, badgeData := range renderer.Get("authorBadges").JsonArray() {
 		badge += badgeData.Get("liveChatAuthorBadgeRenderer").Get("tooltip").String() + " "
+	}
+
+	if badge == "" {
+		return badge
 	}
 
 	return badge[:len(badge)-1]
@@ -385,6 +384,10 @@ func check(channelId, badge string) bool {
 	}
 
 	return false
+}
+
+func removeEmoji(input string) string {
+	return regexp.MustCompile(`[\x{1F300}-\x{1F5FF}]|[\x{1F600}-\x{1F64F}]|[\x{1F680}-\x{1F6FF}]|[\x{1F900}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}]`).ReplaceAllString(input, "")
 }
 
 func (message Message) Map() map[string]any {
