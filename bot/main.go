@@ -254,13 +254,13 @@ func main() {
 	runGo(YoutubeStreamNotify, 30, "Sakuna")
 	runGo(YoutubeNotify, 180, "Sakuna")
 	runGo(FanboxNotify, 180, "Sakuna")
-	runGo(TiktokNotify, 300, "Sakuna")
+	// runGo(TiktokNotify, 300, "Sakuna")
 
 	runGo(YoutubeStreamNotify, 30, "Shion")
 	runGo(YoutubeNotify, 300, "Shion")
-	runGo(TwitchStreamNotify, 60, "Shion")
-	runGo(TwitchNotify, 600, "Shion")
-	runGo(TiktokNotify, 600, "Shion")
+	// runGo(TwitchStreamNotify, 60, "Shion")
+	// runGo(TwitchNotify, 600, "Shion")
+	// runGo(TiktokNotify, 600, "Shion")
 
 	runGo(YoutubeStreamNotify, 600, "Aqua")
 	runGo(YoutubeNotify, 1800, "Aqua")
@@ -1353,7 +1353,7 @@ func FanboxNotify(name string) {
 		}
 
 		title, err := tools.GetTitle(link)
-		if err != nil {
+		if err != nil && title == "" {
 			panic(err)
 		}
 
@@ -1468,7 +1468,7 @@ func FanboxNotify(name string) {
 			db.Insert("FanboxPost", posts.New.Map())
 		} else {
 			if posts.Old.UpdatedTime.String() != posts.New.UpdatedTime.String() {
-				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章更新了！", posts.New.Image).Send(s, discordChannelId)
+				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章更新了！", posts.New.Image).Send(s, testChannelId)
 				db.Update("FanboxPost", posts.New.Id, "UpdatedTime", posts.New.UpdatedTime.String())
 			}
 

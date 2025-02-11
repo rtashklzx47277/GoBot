@@ -92,7 +92,7 @@ func ToDocument(reader io.ReadCloser) (*goquery.Document, error) {
 func GetTitle(path string) (string, error) {
 	reader, err := Get(path).AddHeader("User-Agent", UserAgent).Do()
 	if err != nil {
-		return "", err
+		return path, err
 	}
 
 	doc, err := ToDocument(reader)

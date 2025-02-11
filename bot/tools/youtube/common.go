@@ -174,9 +174,15 @@ func (video Video) Map() map[string]any {
 		}
 
 		if video.StartTime != (tools.Time{}) {
-			videoMap["StartTime"], videoMap["EndTime"] = video.StartTime.String(), video.EndTime.String()
+			videoMap["StartTime"] = video.StartTime.String()
 		} else {
-			videoMap["StartTime"], videoMap["EndTime"] = nil, nil
+			videoMap["StartTime"] = nil
+		}
+
+		if video.EndTime != (tools.Time{}) {
+			videoMap["EndTime"] = video.EndTime.String()
+		} else {
+			videoMap["EndTime"] = nil
 		}
 	}
 
