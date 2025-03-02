@@ -9,7 +9,7 @@ type Time time.Time
 type Duration time.Duration
 
 func (t Time) InRange(hour int) bool {
-	return time.Now().UTC().Sub(time.Time(t)) <= time.Duration(hour)*time.Hour
+	return time.Since(time.Time(t)) <= time.Duration(hour)*time.Hour
 }
 
 func (t Time) Stamp() int {

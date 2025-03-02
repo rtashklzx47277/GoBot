@@ -251,23 +251,10 @@ func main() {
 
 	getChat("Aqua", "Shion", "Sakuna")
 
-	runGo(YoutubeStreamNotify, 30, "Sakuna")
-	runGo(YoutubeNotify, 180, "Sakuna")
-	runGo(FanboxNotify, 180, "Sakuna")
-	// runGo(TiktokNotify, 300, "Sakuna")
-
-	runGo(YoutubeStreamNotify, 30, "Shion")
-	runGo(YoutubeNotify, 300, "Shion")
-	// runGo(TwitchStreamNotify, 60, "Shion")
-	// runGo(TwitchNotify, 600, "Shion")
-	// runGo(TiktokNotify, 600, "Shion")
-
-	runGo(YoutubeStreamNotify, 600, "Aqua")
-	runGo(YoutubeNotify, 1800, "Aqua")
-
-	runGo(Collab, 600, "Aqua", "Shion")
-	// runGo(News, 600, "Aqua", "Shion")
-	runGo(Site, 300, "Sakuna")
+	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Shion": 60, "Aqua": 600})
+	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Shion": 300, "Aqua": 1800})
+	runGo(FanboxNotify, map[string]int{"Sakuna": 180})
+	runGo(Collab, map[string]int{"Shion": 600})
 
 	select {}
 }
@@ -425,7 +412,11 @@ func YoutubeNotify(name string) {
 			panic(err)
 		}
 
-		baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
+		if channelId == "UC1opHUrw8rvnsadT-iGp7Cg" {
+			baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, testChannelId)
+		} else {
+			baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
+		}
 	} else if err != nil {
 		panic(err)
 	}
@@ -1609,9 +1600,12 @@ func initial() {
 	defer s.Close()
 }
 
-func runGo(f func(string), interval int, names ...string) {
-	for _, name := range names {
-		go func(name string) {
+func runGo(f func(string), names map[string]int) {
+	i := 0
+
+	for name, interval := range names {
+		go func(name string, delay int) {
+			time.Sleep(time.Duration(delay) * time.Second)
 			f(name)
 
 			ticker := time.NewTicker(time.Duration(interval) * time.Second)
@@ -1620,7 +1614,8 @@ func runGo(f func(string), interval int, names ...string) {
 			for range ticker.C {
 				f(name)
 			}
-		}(name)
+		}(name, i*10)
+		i++
 	}
 }
 

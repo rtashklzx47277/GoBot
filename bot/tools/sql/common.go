@@ -76,15 +76,15 @@ func (mySQL *MySQL) Update(table, Id string, colAndVal ...any) {
 }
 
 func (mySQL *MySQL) Find(table, filter string, values ...any) bool {
-	var count int
+	var exist bool
 
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", table, filter)
-	err := mySQL.db.QueryRow(query, values...).Scan(&count)
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s %s LIMIT 1)", table, filter)
+	err := mySQL.db.QueryRow(query, values...).Scan(&exist)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
 
-	return count != 0
+	return exist
 }
 
 func handleNullString(d sql.NullString) string {

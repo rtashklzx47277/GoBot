@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"image"
@@ -211,25 +212,46 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse into image!\n%w", err)
 	}
+	if pic.Bounds().Dx() == 0 || pic.Bounds().Dy() == 0 {
+		return nil, fmt.Errorf("empty image")
+	}
 
 	return pic, err
 }
 
-func checkPixel(old, new image.Image) int {
-	if old.Bounds() == image.Rect(0, 0, 480, 360) && new.Bounds() == image.Rect(0, 0, 1280, 720) {
+func checkPixel(oldImg, newImg image.Image) int {
+	if oldImg.Bounds() == image.Rect(0, 0, 480, 360) && newImg.Bounds() == image.Rect(0, 0, 1280, 720) {
 		return 2
-	} else if old.Bounds() != new.Bounds() {
+	} else if oldImg.Bounds() != newImg.Bounds() {
 		return 0
 	}
 
-	bounds := old.Bounds()
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			if old.At(x, y) != new.At(x, y) {
-				return 0
-			}
-		}
+	oldBuf := new(bytes.Buffer)
+	newBuf := new(bytes.Buffer)
+
+	err := jpeg.Encode(oldBuf, oldImg, &jpeg.Options{Quality: 75})
+	if err != nil {
+		return 1
+	}
+	err = jpeg.Encode(newBuf, newImg, &jpeg.Options{Quality: 75})
+	if err != nil {
+		return 1
+	}
+
+	if sha256.Sum256(oldBuf.Bytes()) != sha256.Sum256(newBuf.Bytes()) {
+		return 0
 	}
 
 	return 1
+
+	// bounds := old.Bounds()
+	// for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+	// 	for x := bounds.Min.X; x < bounds.Max.X; x++ {
+	// 		if old.At(x, y) != new.At(x, y) {
+	// 			return 0
+	// 		}
+	// 	}
+	// }
+
+	// return 1
 }

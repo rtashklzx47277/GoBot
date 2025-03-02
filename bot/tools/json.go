@@ -180,11 +180,13 @@ func (js *Json) Time() Time {
 		return Time{}
 	}
 
-	if ts, err := time.Parse(time.RFC3339, js.String()); err == nil {
+	s := js.String()
+
+	if ts, err := time.Parse(time.RFC3339, s); err == nil {
 		return Time(ts)
-	} else if ts, err := time.Parse("2006-01-02 15:04:05", js.String()); err == nil {
+	} else if ts, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
 		return Time(ts)
-	} else if ts, err := time.Parse("2006-01-02", js.String()); err == nil {
+	} else if ts, err := time.Parse("2006-01-02", s); err == nil {
 		return Time(ts)
 	}
 
