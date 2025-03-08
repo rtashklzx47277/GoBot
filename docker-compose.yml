@@ -1,7 +1,7 @@
 services:
-  mysql:
-    image: mysql:latest
-    container_name: mysql
+  mydb:
+    image: mariadb:latest
+    container_name: mydb
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: mydb
@@ -11,18 +11,24 @@ services:
       - ./backup:/docker-entrypoint-initdb.d
     ports:
       - 4450:3306
+    command: --innodb_flush_log_at_trx_commit=2
+    networks:
+      - bot-net
     restart: always
-  go-bot:
-    image: golang:latest
-    container_name: go-bot
-    volumes:
-      - ./bot:/bot
+  gobot:
+    image: golang:alpine
+    container_name: gobot
     working_dir: /bot
     env_file:
-      - ./.env
-    environment:
-      - TZ=Asia/Taipei
+      - .env
+    volumes:
+      - ./bot:/bot
+    command: go run .
+    networks:
+      - bot-net
     depends_on:
-      - mysql
+      - mydb
     restart: always
-    command: go run /bot/.
+networks:
+  bot-net:
+    driver: bridge

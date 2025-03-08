@@ -21,12 +21,14 @@ import (
 )
 
 var (
-	db            *sql.MySQL
-	s             *discordgo.Session
-	collabIds     = []string{}
-	messageIdList = []string{}
-	logChannelId  = os.Getenv("DISCORD_LOG_CHANNEL_ID")
-	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
+	db               *sql.MySQL
+	s                *discordgo.Session
+	collabIds        = []string{}
+	messageIdList    = []string{}
+	channelCache     = map[string]*youtube.Channel{}
+	channelIconCache = map[string]string{}
+	logChannelId     = os.Getenv("DISCORD_LOG_CHANNEL_ID")
+	testChannelId    = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 
 	commands = []*discordgo.ApplicationCommand{
 		{
@@ -251,6 +253,18 @@ func main() {
 
 	getChat("Aqua", "Shion", "Sakuna")
 
+	for _, name := range []string{"Aqua", "Shion", "Sakuna"} {
+		channelId := tools.UserData[name]["Youtube"]["Id"]
+		channelData := db.FindChannel(channelId)
+		channelCache[channelId] = &channelData
+
+		channel, err := youtube.GetChannel(channelId)
+		if err != nil {
+			panic(err)
+		}
+		channelIconCache[channelId] = channel.Icon
+	}
+
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Shion": 60, "Aqua": 600})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Shion": 300, "Aqua": 1800})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180})
@@ -270,13 +284,8 @@ func YoutubeStreamNotify(name string) {
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube Live")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
-
-	channel, err := youtube.GetChannel(channelId)
-	if err != nil {
-		panic(err)
-	}
-
-	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
+	channel := channelCache[channelId]
+	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channelIconCache[channelId])
 
 	videoIds := db.Distinct("video", channelId)
 	videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1), 3)
@@ -314,9 +323,7 @@ func YoutubeStreamNotify(name string) {
 		if i >= index {
 			video.Member = true
 			status = "member"
-		}
-
-		if video.Live {
+		} else if video.Live {
 			go LiveChat(video.Id, discordChannelId)
 		}
 
@@ -372,8 +379,7 @@ func YoutubeNotify(name string) {
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
-
-	channelData := db.FindChannel(channelId)
+	channelData := channelCache[channelId]
 	channel, err := youtube.GetChannel(channelId)
 	if err != nil {
 		panic(err)
@@ -384,26 +390,31 @@ func YoutubeNotify(name string) {
 	if channelData.SubscriberCount/10000 < channel.SubscriberCount/10000 {
 		baseEmbed.New("", "", fmt.Sprintf("Youtube訂閱者數已突破%d萬人了！", channel.SubscriberCount/10000), channel.Icon).Send(s, discordChannelId)
 		db.Update("Channel", channelId, "SubscriberCount", channel.SubscriberCount)
+		channelData.SubscriberCount = channel.SubscriberCount
 	}
 
 	if channelData.ViewCount/50000000 < channel.ViewCount/50000000 {
 		baseEmbed.New("", "", fmt.Sprintf("Youtube觀看次數已突破%s億次了！", fmt.Sprintf("%.1f", float64(channel.ViewCount)/100000000)), channel.Icon).Send(s, discordChannelId)
 		db.Update("Channel", channelId, "ViewCount", channel.ViewCount)
+		channelData.ViewCount = channel.ViewCount
 	}
 
 	if channelData.CustomId != channel.CustomId {
 		baseEmbed.New("", "", "頻道ID更新了！", "").Change(channelData.CustomId, channel.CustomId).Send(s, discordChannelId)
 		db.Update("Channel", channelId, "CustomId", channel.CustomId)
+		channelData.CustomId = channel.CustomId
 	}
 
 	if channelData.Title != channel.Title {
 		baseEmbed.New("", "", "頻道名稱更新了！", "").Change(channelData.Title, channel.Title).Send(s, discordChannelId)
 		db.Update("Channel", channelId, "Title", channel.Title)
+		channelData.Title = channel.Title
 	}
 
 	if channelData.Description != channel.Description {
 		baseEmbed.New("", "", "頻道介紹更新了！", "").Change(channelData.Description, channel.Description).Send(s, discordChannelId)
 		db.Update("Channel", channelId, "Description", channel.Description)
+		channelData.Description = channel.Description
 	}
 
 	if check, image, err := tools.ImageCheck(channelData.Icon, channel.Icon); err == nil && check == 0 {
@@ -411,12 +422,9 @@ func YoutubeNotify(name string) {
 		if err != nil {
 			panic(err)
 		}
+		channelIconCache[channelId] = channel.Icon
 
-		if channelId == "UC1opHUrw8rvnsadT-iGp7Cg" {
-			baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, testChannelId)
-		} else {
-			baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
-		}
+		baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
 	} else if err != nil {
 		panic(err)
 	}
@@ -792,18 +800,18 @@ func YoutubeNotify(name string) {
 
 			baseEmbed.New("", "", "新增了自訂表情符號", stamp.Image).Send(s, discordChannelId)
 			db.Insert("Stamp", stamp.Map())
-		} else {
-			if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Stamp/%s.jpg", channelId, stamp.Label), stamp.Image); err == nil && check == 0 {
-				err = tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
-				if err != nil {
-					panic(err)
-				}
+		} // else {
+		// 	if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Stamp/%s.jpg", channelId, stamp.Label), stamp.Image); err == nil && check == 0 {
+		// 		err = tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
+		// 		if err != nil {
+		// 			panic(err)
+		// 		}
 
-				baseEmbed.New("", "", "自訂表情符號更新了！", image).Send(s, discordChannelId)
-			} else if err != nil {
-				panic(err)
-			}
-		}
+		// 		baseEmbed.New("", "", "自訂表情符號更新了！", image).Send(s, discordChannelId)
+		// 	} else if err != nil {
+		// 		panic(err)
+		// 	}
+		// }
 	}
 
 	for _, perks := range youtube.GroupPerk(oldPerks, newPerks) {
@@ -1473,16 +1481,16 @@ func FanboxNotify(name string) {
 				db.Update("FanboxPost", posts.New.Id, "Fee", posts.New.Fee)
 			}
 
-			if check, image, err := tools.ImageCheck(posts.Old.Image, posts.New.Image); err == nil && check == 0 {
-				err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
-				if err != nil {
-					panic(err)
-				}
+			// if check, image, err := tools.ImageCheck(posts.Old.Image, posts.New.Image); err == nil && check == 0 {
+			// 	err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
+			// 	if err != nil {
+			// 		panic(err)
+			// 	}
 
-				baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章圖片更新了！", image).Send(s, discordChannelId)
-			} else if err != nil {
-				panic(err)
-			}
+			// 	baseEmbed.New(posts.New.Title, posts.New.Url, "投稿文章圖片更新了！", image).Send(s, discordChannelId)
+			// } else if err != nil {
+			// 	panic(err)
+			// }
 		}
 	}
 }
@@ -1583,7 +1591,7 @@ func initial() {
 	})
 
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		fmt.Println("Bot is running.")
+		fmt.Println("Bot is running...")
 	})
 
 	for _, command := range commands {

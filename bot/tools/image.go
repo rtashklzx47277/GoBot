@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"image"
@@ -10,20 +9,40 @@ import (
 	"image/draw"
 	"image/jpeg"
 	"io"
+	"log"
 	"mime/multipart"
 	"os"
 	"strings"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
+	imageCache *lru.Cache
 	imgurToken = os.Getenv("IMGUR_TOKEN")
 	albumId    = os.Getenv("IMGUR_ALBUM")
 )
 
-func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
-	old, err := imageLoad(oldImagePath, "file")
+func init() {
+	var err error
+	imageCache, err = lru.New(50)
 	if err != nil {
-		return 0, "", err
+		log.Fatalf("Failed to initialize imageCache in tools package: %v", err)
+	}
+}
+
+func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
+	var old image.Image
+	if val, ok := imageCache.Get(oldImagePath); ok {
+		old = val.(image.Image)
+	} else {
+		var err error
+		old, err = imageLoad(oldImagePath, "file")
+		if err != nil {
+			return 0, "", err
+		}
+		fmt.Println("Image loaded from file:", oldImagePath)
+		imageCache.Add(oldImagePath, old)
 	}
 
 	new, err := imageLoad(newImageUrl, "url")
@@ -111,18 +130,36 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return nil
 	}
 
+	imagePath := fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/"))
+
 	reader, err := Get(imageUrl).AddHeader("User-Agent", UserAgent).Do()
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
 
-	file, err := os.Create(fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/")))
+	buffer := new(bytes.Buffer)
+
+	_, err = io.Copy(buffer, reader)
+	if err != nil {
+		return fmt.Errorf("failed to read image data: %w", err)
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(buffer.Bytes()))
+	if err != nil {
+		return fmt.Errorf("failed to decode image: %w", err)
+	}
+
+	fmt.Println("Image loaded from URL:", imageUrl)
+	imageCache.Add(imagePath, img)
+
+	file, err := os.Create(imagePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file!\n%w", err)
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, reader)
+	_, err = io.Copy(file, bytes.NewReader(buffer.Bytes()))
 	if err != nil {
 		return fmt.Errorf("failed to copy data from reader to file!\n%w", err)
 	}
@@ -226,32 +263,14 @@ func checkPixel(oldImg, newImg image.Image) int {
 		return 0
 	}
 
-	oldBuf := new(bytes.Buffer)
-	newBuf := new(bytes.Buffer)
-
-	err := jpeg.Encode(oldBuf, oldImg, &jpeg.Options{Quality: 75})
-	if err != nil {
-		return 1
-	}
-	err = jpeg.Encode(newBuf, newImg, &jpeg.Options{Quality: 75})
-	if err != nil {
-		return 1
-	}
-
-	if sha256.Sum256(oldBuf.Bytes()) != sha256.Sum256(newBuf.Bytes()) {
-		return 0
+	bounds := oldImg.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if oldImg.At(x, y) != newImg.At(x, y) {
+				return 0
+			}
+		}
 	}
 
 	return 1
-
-	// bounds := old.Bounds()
-	// for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-	// 	for x := bounds.Min.X; x < bounds.Max.X; x++ {
-	// 		if old.At(x, y) != new.At(x, y) {
-	// 			return 0
-	// 		}
-	// 	}
-	// }
-
-	// return 1
 }

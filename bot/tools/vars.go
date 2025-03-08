@@ -166,5 +166,11 @@ var (
 				"DiscordChannelId": "1300328308705198132",
 			},
 		},
+		"Roa": {
+			"Youtube": {
+				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
+				"DiscordChannelId": "872814425046937610",
+			},
+		},
 	}
 )
