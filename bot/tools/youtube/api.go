@@ -55,9 +55,13 @@ func GetChannel(channelId string) (Channel, error) {
 		Title:           item.Get("snippet").Get("title").String(),
 		Description:     item.Get("snippet").Get("description").String(),
 		Icon:            item.Get("snippet").Get("thumbnails").Image(),
-		Banner:          strings.Split(item.Get("brandingSettings").Get("image").Get("bannerExternalUrl").String(), "=w")[0] + "=w0",
 		SubscriberCount: item.Get("statistics").Get("subscriberCount").Int(),
 		ViewCount:       item.Get("statistics").Get("viewCount").Int(),
+	}
+
+	bannerUrl := item.Get("brandingSettings").Get("image").Get("bannerExternalUrl").String()
+	if bannerUrl != "" {
+		channel.Banner = strings.Split(bannerUrl, "=w")[0] + "=w0"
 	}
 
 	return channel, nil

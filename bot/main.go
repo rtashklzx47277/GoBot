@@ -253,7 +253,7 @@ func main() {
 
 	getChat("Aqua", "Shion", "Sakuna")
 
-	for _, name := range []string{"Aqua", "Shion", "Sakuna"} {
+	for _, name := range []string{"Sakuna", "Roa", "Aqua", "Shion"} {
 		channelId := tools.UserData[name]["Youtube"]["Id"]
 		channelData := db.FindChannel(channelId)
 		channelCache[channelId] = &channelData
@@ -265,9 +265,9 @@ func main() {
 		channelIconCache[channelId] = channel.Icon
 	}
 
-	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Shion": 60, "Aqua": 600})
-	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Shion": 300, "Aqua": 1800})
-	runGo(FanboxNotify, map[string]int{"Sakuna": 180})
+	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Aqua": 600, "Shion": 60})
+	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Aqua": 3600, "Shion": 300})
+	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
 
 	select {}
@@ -1492,66 +1492,6 @@ func FanboxNotify(name string) {
 			// 	panic(err)
 			// }
 		}
-	}
-}
-
-func News(name string) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "News", name)
-			tools.ErrorRecord(r)
-		}
-	}()
-
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "News")
-
-	userId, discordChannelId := tools.UserData[name]["News"]["Id"], tools.UserData[name]["News"]["DiscordChannelId"]
-
-	newsList, err := tools.GetNews(userId)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, news := range newsList {
-		if !db.Find("News", "WHERE Url = ? AND Mention = ?", news.Url, userId) {
-			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", news.Title, news.Url))
-			db.Insert("News", news.Map())
-		}
-	}
-}
-
-func Site(name string) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "Site", name)
-			tools.ErrorRecord(r)
-		}
-	}()
-
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Site")
-
-	discordChannelId := tools.UserData[name]["Site"]["DiscordChannelId"]
-
-	HPId, radioId := db.FindArticleId()
-
-	articles, err := tools.GetHP(HPId)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, article := range articles {
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", article.Title, article.Url))
-		db.Insert("Article", article.Map())
-	}
-
-	articles, err = tools.GetRadio(radioId)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, article := range articles {
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s\n%s", article.Title, article.Url))
-		db.Insert("Article", article.Map())
 	}
 }
 

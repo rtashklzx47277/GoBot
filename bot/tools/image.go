@@ -130,6 +130,7 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return nil
 	}
 
+	// imagePath := fmt.Sprintf("C:/Users/Derek/Downloads/Workspace/GoBot/bot/media/%s.jpg", strings.Join(filePath, "/"))
 	imagePath := fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/"))
 
 	reader, err := Get(imageUrl).AddHeader("User-Agent", UserAgent).Do()

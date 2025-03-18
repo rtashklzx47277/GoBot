@@ -104,14 +104,6 @@ var (
 				"Id":               "minatoaqua_hololive",
 				"DiscordChannelId": "969862812333666334",
 			},
-			"Fanbox": {
-				"Id":               "80355000",
-				"DiscordChannelId": "965967553870594098",
-			},
-			"News": {
-				"Id":               "湊あくあ",
-				"DiscordChannelId": "968838661569400952",
-			},
 		},
 		"Shion": {
 			"Youtube": {
@@ -130,14 +122,6 @@ var (
 				"Id":               "murasakishion_hololive",
 				"DiscordChannelId": "996703905612320778",
 			},
-			"Fanbox": {
-				"Id":               "69014608",
-				"DiscordChannelId": "872814425046937610",
-			},
-			"News": {
-				"Id":               "紫咲シオン",
-				"DiscordChannelId": "971271623221075968",
-			},
 		},
 		"Sakuna": {
 			"Youtube": {
@@ -152,23 +136,32 @@ var (
 				"Id":               "80355000",
 				"DiscordChannelId": "1300328308705198132",
 			},
-			"Site": {
+		},
+		"Roa": {
+			"Youtube": {
+				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
+				"DiscordChannelId": "872814425046937610",
+			},
+			"Fanbox": {
+				"Id":               "69014608",
+				"DiscordChannelId": "872814425046937610",
+			},
+		},
+		"Rinco": {
+			"Youtube": {
+				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
+				"DiscordChannelId": "1320729508688695338",
+			},
+		},
+		"DesuRinco": {
+			"Youtube": {
+				"Id":               "UC0G3JPhTMpZh1r-TvUbimzA",
 				"DiscordChannelId": "1320729508688695338",
 			},
 		},
 		"Kuroa": {
 			"Youtube": {
-				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
-				"DiscordChannelId": "965967553870594098",
-			},
-			"Fanbox": {
-				"Id":               "80355000",
-				"DiscordChannelId": "1300328308705198132",
-			},
-		},
-		"Roa": {
-			"Youtube": {
-				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
+				"Id":               "UCUorUDkyNBlmEIDlJUarGFg",
 				"DiscordChannelId": "872814425046937610",
 			},
 		},
