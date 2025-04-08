@@ -64,6 +64,22 @@ func (js *Json) JsonArray() []*Json {
 	return jsa
 }
 
+func (js *Json) SubArray(start, end int) []*Json {
+	jsa := []*Json{}
+	items := js.Array()
+
+	for i, item := range items {
+		if i < start {
+			continue
+		} else if i >= len(items)+end {
+			break
+		}
+		jsa = append(jsa, &Json{item.(map[string]any)})
+	}
+
+	return jsa
+}
+
 func (js *Json) Map() map[string]any {
 	if jm, ok := (js.Data).(map[string]any); ok {
 		return jm
@@ -106,6 +122,10 @@ func (js *Json) Replace(old, new string, n int) string {
 	}
 
 	return ""
+}
+
+func (js *Json) HasPrefix(sub string) bool {
+	return strings.HasPrefix(js.String(), sub)
 }
 
 func (js *Json) Split(sep string) []string {
@@ -200,7 +220,7 @@ func (js *Json) Duration() Duration {
 
 	var temp string
 
-	if strings.HasPrefix(js.String(), "PT") {
+	if js.HasPrefix("PT") {
 		temp = js.Slice(2, -1)
 	} else {
 		temp = js.String()

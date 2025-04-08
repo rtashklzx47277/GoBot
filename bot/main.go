@@ -8,6 +8,7 @@ import (
 	"GoBot/tools/tiktok"
 	"GoBot/tools/twitcasting"
 	"GoBot/tools/twitch"
+	"GoBot/tools/twitter"
 	"GoBot/tools/youtube"
 	"errors"
 	"fmt"
@@ -249,6 +250,54 @@ var (
 )
 
 func main() {
+	// var err error
+	// db, err = sql.ConnectToMySQL("test", "test", "127.0.0.1", "4450", "mydb")
+	// if err != nil {
+	// 	fmt.Printf("Error connecting to MySQL: %v\n", err)
+	// }
+
+	// users, err := twitter.GetUsers("yuki_sakuna", "sakuna_twintail", "Yuukisakunainfo", "rin_co_co", "roasan___", "kuroa_06", "minatoaqua", "murasakishionch", "shionchan_o")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// for _, user := range users {
+	// 	fmt.Println(user.Id)
+	// 	fmt.Println(user.Username)
+	// 	fmt.Println(user.Name)
+	// 	fmt.Println("=====================================")
+	// }
+
+	// posts, err := twitter.GetTimeline("1512311952114028548", "0")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// for _, post := range posts {
+	// 	db.Insert("TwitterPost", post.Map())
+
+	// 	for i, media := range post.Media {
+	// 		if media.Type == "photo" {
+	// 			err := tools.ImageDownload(media.Url, "Twitter", post.AuthorId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+	// 			if err != nil {
+	// 				fmt.Println(err)
+	// 			}
+	// 		} else {
+	// 			err := tools.VideoDownload(media.Url, "Twitter", post.AuthorId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+	// 			if err != nil {
+	// 				fmt.Println(err)
+	// 			}
+	// 		}
+	// 	}
+
+	// 	if post.PollId != "" {
+	// 		fmt.Println(post.Id)
+	// 		for _, option := range post.Options {
+	// 			db.Insert("TwitterPoll", map[string]any{"Id": post.PollId, "Option": option})
+	// 		}
+	// 	}
+	// }
+
 	initial()
 
 	getChat("Aqua", "Shion", "Sakuna")
@@ -266,6 +315,7 @@ func main() {
 	}
 
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Aqua": 600, "Shion": 60})
+	// runGo(TwitterNotify, map[string]int{"Sakuna": 300})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Aqua": 3600, "Shion": 300})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
@@ -352,7 +402,12 @@ func YoutubeStreamNotify(name string) {
 					panic(err)
 				}
 
-				baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", thumbnail).Send(s, discordChannelId)
+				if old.LiveStatus == 1 {
+					baseEmbed.New(old.Title, old.Url, "預定直播已被取消了！", thumbnail).Send(s, discordChannelId)
+				} else if old.LiveStatus == 2 {
+					baseEmbed.New(old.Title, old.Url, "直播串流已設為不公開！", thumbnail).Send(s, discordChannelId)
+				}
+
 				db.Update("Video", old.Id, "Private", new.Private)
 			}
 		} else if old.ScheduledTime != new.ScheduledTime {
@@ -822,6 +877,105 @@ func YoutubeNotify(name string) {
 			baseEmbed.New(perks.New.Title, "", "新增了會員福利！", "").Send(s, discordChannelId)
 			db.Insert("Perk", perks.New.Map())
 		}
+	}
+}
+
+func TwitterNotify(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Twitter", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
+
+	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId //tools.UserData[name]["Twitter"]["DiscordChannelId"]
+
+	userData := db.FindTwitterUser(userId)
+	user, err := twitter.GetUser(username)
+	if err != nil {
+		panic(err)
+	}
+
+	baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
+
+	if userId != user.Id {
+		newUsername, err := twitter.GetUsername(userId)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Username", newUsername)
+		tools.UserData[name]["Twitter"]["Username"] = newUsername
+
+		return
+	}
+
+	if userData.Name != user.Name {
+		baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Name, user.Name).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Name", user.Name)
+	}
+
+	if userData.Description != user.Description {
+		baseEmbed.New("", "", "用戶介紹欄更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Description", user.Description)
+	}
+
+	if userData.Location != user.Location {
+		baseEmbed.New("", "", "用戶位置更新了！", "").Change(userData.Location, user.Location).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Location", user.Location)
+	}
+
+	if userData.Pinned != user.Pinned {
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("釘選了新的推文！ https://x.com/x/status/%s", user.Pinned))
+		db.Update("TwitterUser", userId, "Pinned", user.Pinned)
+	}
+
+	if userData.FollowersCount/10000 < user.FollowersCount/10000 {
+		baseEmbed.New("", "", fmt.Sprintf("Twitter追隨者數已突破%d萬人了！", user.FollowersCount/10000), user.Icon).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "FollowersCount", user.FollowersCount)
+	}
+
+	if userData.FollowingCount != user.FollowingCount && user.FollowingCount != 0 {
+		var message string
+
+		if userData.FollowingCount < user.FollowingCount {
+			message = "追隨了新的用戶！"
+		} else {
+			message = "解除追隨了用戶！"
+		}
+
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s FollowingCount: %d", message, user.LikeCount))
+		db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
+	}
+
+	if userData.LikeCount < user.LikeCount {
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("對新的推文案了喜歡！ LikeCount: %d", user.LikeCount))
+		db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
+	}
+
+	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
+		err = tools.ImageDownload(user.Icon, "Twitter", userId, "Icon", userId)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
+	} else if err != nil {
+		panic(err)
+	}
+
+	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
+		err = tools.ImageDownload(user.Banner, "Twitter", userId, "Banner", userId)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
+	} else if err != nil {
+		panic(err)
 	}
 }
 

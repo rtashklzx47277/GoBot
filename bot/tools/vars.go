@@ -84,6 +84,10 @@ var (
 		"UC9V3Y3_uzU5e-usObb6IE1w": "星川サラ",
 		"UC9EjSJ8pvxtvPdxLOElv73w": "魔界ノりりむ",
 		"UCrV1Hf5r8P148idjoSfrGEQ": "結城さくな",
+		"UCLIpj4TmXviSTNE_U5WG_Ug": "Roa",
+		"UCBbGcCpI1NmpNdEV1qPQttw": "Rinco",
+		"UC0G3JPhTMpZh1r-TvUbimzA": "DesuRinco",
+		"UCUorUDkyNBlmEIDlJUarGFg": "Kuroa",
 	}
 
 	UserData = map[string]map[string]map[string]string{
@@ -91,6 +95,11 @@ var (
 			"Youtube": {
 				"Id":               "UC1opHUrw8rvnsadT-iGp7Cg",
 				"DiscordChannelId": "965968317280055397",
+			},
+			"Twitter": {
+				"Id":               "1024528894940987392",
+				"Username":         "minatoaqua",
+				"DiscordChannelId": "1320729508688695338",
 			},
 			"Twitch": {
 				"Id":               "738746247",
@@ -110,6 +119,11 @@ var (
 				"Id":               "UCXTpFs_3PqI41qX2d9tL2Rw",
 				"DiscordChannelId": "965973309432942642",
 			},
+			"Twitter": {
+				"Id":               "1024533638879166464",
+				"Username":         "murasakishionch",
+				"DiscordChannelId": "1320729508688695338",
+			},
 			"Twitch": {
 				"Id":               "773041510",
 				"DiscordChannelId": "976847607248871444",
@@ -128,6 +142,11 @@ var (
 				"Id":               "UCrV1Hf5r8P148idjoSfrGEQ",
 				"DiscordChannelId": "965967553870594098",
 			},
+			"Twitter": {
+				"Id":               "1512311952114028548",
+				"Username":         "yuki_sakuna",
+				"DiscordChannelId": "1353279581741649940",
+			},
 			"Tiktok": {
 				"Id":               "7430741405997761554",
 				"DiscordChannelId": "1300328308705198132",
@@ -142,6 +161,11 @@ var (
 				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
 				"DiscordChannelId": "872814425046937610",
 			},
+			"Twitter": {
+				"Id":               "1850834672483459072",
+				"Username":         "roasan___",
+				"DiscordChannelId": "1320729508688695338",
+			},
 			"Fanbox": {
 				"Id":               "69014608",
 				"DiscordChannelId": "872814425046937610",
@@ -150,6 +174,11 @@ var (
 		"Rinco": {
 			"Youtube": {
 				"Id":               "UCBbGcCpI1NmpNdEV1qPQttw",
+				"DiscordChannelId": "1320729508688695338",
+			},
+			"Twitter": {
+				"Id":               "2902558987",
+				"Username":         "rin_co_co",
 				"DiscordChannelId": "1320729508688695338",
 			},
 		},
@@ -163,6 +192,11 @@ var (
 			"Youtube": {
 				"Id":               "UCUorUDkyNBlmEIDlJUarGFg",
 				"DiscordChannelId": "872814425046937610",
+			},
+			"Twitter": {
+				"Id":               "781803201041313792",
+				"Username":         "kuroa_06",
+				"DiscordChannelId": "1320729508688695338",
 			},
 		},
 	}

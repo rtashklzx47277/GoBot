@@ -37,6 +37,14 @@ func (req *Request) AddCookie(key, value string) *Request {
 	return req
 }
 
+func (req *Request) AddQuery(key, value string) *Request {
+	query := (*http.Request)(req).URL.Query()
+	query.Add(key, value)
+	(*http.Request)(req).URL.RawQuery = query.Encode()
+
+	return req
+}
+
 func (req *Request) Do() (io.ReadCloser, error) {
 	if req.URL.String() == "" {
 		return nil, ErrorEmptyPath

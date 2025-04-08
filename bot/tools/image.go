@@ -141,9 +141,16 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 
 	buffer := new(bytes.Buffer)
 
-	_, err = io.Copy(buffer, reader)
+	file, err := os.Create(imagePath)
 	if err != nil {
-		return fmt.Errorf("failed to read image data: %w", err)
+		return fmt.Errorf("failed to create file!\n%w", err)
+	}
+	defer file.Close()
+
+	teeReader := io.TeeReader(reader, buffer)
+	_, err = io.Copy(file, teeReader)
+	if err != nil {
+		return fmt.Errorf("failed to copy data from reader to file!\n %w", err)
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(buffer.Bytes()))
@@ -154,13 +161,30 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 	fmt.Println("Image loaded from URL:", imageUrl)
 	imageCache.Add(imagePath, img)
 
-	file, err := os.Create(imagePath)
+	return nil
+}
+
+func VideoDownload(videoUrl string, filePath ...string) error {
+	if videoUrl == "" {
+		return nil
+	}
+
+	// videoPath := fmt.Sprintf("C:/Users/Derek/Downloads/Workspace/GoBot/bot/media/%s.mp4", strings.Join(filePath, "/"))
+	videoPath := fmt.Sprintf("/bot/media/%s.mp4", strings.Join(filePath, "/"))
+
+	reader, err := Get(videoUrl).AddHeader("User-Agent", UserAgent).Do()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	file, err := os.Create(videoPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file!\n%w", err)
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, bytes.NewReader(buffer.Bytes()))
+	_, err = io.Copy(file, reader)
 	if err != nil {
 		return fmt.Errorf("failed to copy data from reader to file!\n%w", err)
 	}

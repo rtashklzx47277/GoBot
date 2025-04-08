@@ -289,7 +289,7 @@ func rendererProcessor(renderer *tools.Json, form, videoId, discordChannelId str
 		template = " 收到了的頻道會員贈禮！"
 	}
 
-	s.ChannelMessageSend(discordChannelId, fmt.Sprintf("**[%s](<%s>)**%s ([%s](<%s>))", authorName, authorUrl, template, videoTitle, videoUrl))
+	s.ChannelMessageSend(discordChannelId, fmt.Sprintf("**[%s](<%s>)**%s [%s](<%s>)", authorName, authorUrl, template, videoTitle, videoUrl))
 	db.Insert("Message", message.Map())
 }
 

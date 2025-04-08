@@ -29,22 +29,17 @@ func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, erro
 }
 
 func (mySQL *MySQL) Insert(table string, data map[string]any) {
+	var columns []string
 	var values []any
-	query := "INSERT INTO " + table + " ("
+	var placeholders []string
 
-	for key, val := range data {
-		query += key + ", "
+	for col, val := range data {
+		columns = append(columns, col)
 		values = append(values, val)
+		placeholders = append(placeholders, "?")
 	}
 
-	query = query[:len(query)-2] + ") VALUES ("
-
-	for i := 0; i < len(values); i++ {
-		query += "?, "
-	}
-
-	query = query[:len(query)-2] + ")"
-
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 	_, err := mySQL.db.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to insert data!\n%v", err))
@@ -60,16 +55,16 @@ func (mySQL *MySQL) Delete(table string, filter string, values ...any) {
 }
 
 func (mySQL *MySQL) Update(table, Id string, colAndVal ...any) {
-	var colArray []string
-	var valArray []any
+	var columns []string
+	var values []any
 
 	for i := 0; i < len(colAndVal); i += 2 {
-		colArray = append(colArray, fmt.Sprintf("%s = ?", colAndVal[i]))
-		valArray = append(valArray, colAndVal[i+1])
+		columns = append(columns, fmt.Sprintf("%s = ?", colAndVal[i]))
+		values = append(values, colAndVal[i+1])
 	}
 
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE Id = \"%s\"", table, strings.Join(colArray, ", "), Id)
-	_, err := mySQL.db.Exec(query, valArray...)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE Id = \"%s\"", table, strings.Join(columns, ", "), Id)
+	_, err := mySQL.db.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to update data!\n%v", err))
 	}
