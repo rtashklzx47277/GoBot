@@ -150,7 +150,7 @@ func GetPlaylistItems(playlistId string, num int) ([]Video, error) {
 	for {
 		path := fmt.Sprintf("playlistItems?part=snippet&playlistId=%s&maxResults=%d&pageToken=%s", playlistId, num, pageToken)
 		data, err := getData(path)
-		if err == tools.ErrorNotFound {
+		if errors.Is(err, tools.ErrorNotFound) {
 			return []Video{}, nil
 		} else if err != nil {
 			return []Video{}, err

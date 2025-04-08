@@ -2,6 +2,7 @@ package twitter
 
 import (
 	"GoBot/tools"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,7 +38,7 @@ func getData(path string, queries ...string) (*tools.Json, error) {
 		}
 
 		reader, err = req.Do()
-		if err == tools.ErrorTooManyRequests {
+		if errors.Is(err, tools.ErrorTooManyRequests) {
 			fmt.Println("Too many requests...")
 			count++
 			continue

@@ -41,7 +41,7 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 		if err != nil {
 			return 0, "", err
 		}
-		fmt.Println("Image loaded from file:", oldImagePath)
+		fmt.Printf("Image loaded from file: %s (Cache Size: %d)\n", oldImagePath, imageCache.Len())
 		imageCache.Add(oldImagePath, old)
 	}
 
@@ -70,11 +70,9 @@ func ImageUpload(imagePath string) (string, error) {
 		return "", nil
 	}
 
-	_, err := os.Stat(imagePath)
-	if os.IsNotExist(err) {
+	if !checkFile(imagePath) {
+		fmt.Println(imagePath)
 		return "", nil
-	} else if err != nil {
-		return "", err
 	}
 
 	pic, err := os.ReadFile(imagePath)
@@ -161,7 +159,7 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	fmt.Println("Image loaded from URL:", imageUrl)
+	fmt.Printf("Image loaded from URL: %s (Cache Size: %d)\n", imageUrl, imageCache.Len())
 	imageCache.Add(imagePath, img)
 
 	return nil

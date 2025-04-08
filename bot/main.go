@@ -263,7 +263,6 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-
 		channelCache[channelId] = &youtube.Channel{Title: channel.Title, Url: channel.Url, Icon: channel.Icon}
 	}
 
@@ -387,7 +386,7 @@ func YoutubeNotify(name string) {
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
-	channelData := channelCache[channelId]
+	channelData := db.FindChannel(channelId)
 	channel, err := youtube.GetChannel(channelId)
 	if err != nil {
 		panic(err)
@@ -843,7 +842,7 @@ func TwitterNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
 
-	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId //tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
 
 	userData := db.FindTwitterUser(userId)
 	user, err := twitter.GetUser(username)
