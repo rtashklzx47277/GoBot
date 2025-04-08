@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,6 +11,7 @@ import (
 	"log"
 	"mime/multipart"
 	"os"
+	"path/filepath"
 	"strings"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -25,7 +25,7 @@ var (
 
 func init() {
 	var err error
-	imageCache, err = lru.New(50)
+	imageCache, err = lru.New(100)
 	if err != nil {
 		log.Fatalf("Failed to initialize imageCache in tools package: %v", err)
 	}
@@ -51,7 +51,6 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 	}
 
 	check := checkPixel(old, new)
-
 	if check == 0 {
 		url, err := imageChange(old, new)
 		if err != nil {
@@ -130,22 +129,26 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return nil
 	}
 
-	// imagePath := fmt.Sprintf("C:/Users/Derek/Downloads/Workspace/GoBot/bot/media/%s.jpg", strings.Join(filePath, "/"))
-	imagePath := fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/"))
-
 	reader, err := Get(imageUrl).AddHeader("User-Agent", UserAgent).Do()
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
 
-	buffer := new(bytes.Buffer)
+	imagePath := fmt.Sprintf("/bot/media/%s.jpg", strings.Join(filePath, "/"))
+
+	err = os.MkdirAll(filepath.Dir(imagePath), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create directory!\n%w", err)
+	}
 
 	file, err := os.Create(imagePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file!\n%w", err)
 	}
 	defer file.Close()
+
+	buffer := new(bytes.Buffer)
 
 	teeReader := io.TeeReader(reader, buffer)
 	_, err = io.Copy(file, teeReader)
@@ -169,14 +172,18 @@ func VideoDownload(videoUrl string, filePath ...string) error {
 		return nil
 	}
 
-	// videoPath := fmt.Sprintf("C:/Users/Derek/Downloads/Workspace/GoBot/bot/media/%s.mp4", strings.Join(filePath, "/"))
-	videoPath := fmt.Sprintf("/bot/media/%s.mp4", strings.Join(filePath, "/"))
-
 	reader, err := Get(videoUrl).AddHeader("User-Agent", UserAgent).Do()
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
+
+	videoPath := fmt.Sprintf("/bot/media/%s.mp4", strings.Join(filePath, "/"))
+
+	err = os.MkdirAll(filepath.Dir(videoPath), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create directory!\n%w", err)
+	}
 
 	file, err := os.Create(videoPath)
 	if err != nil {
@@ -246,22 +253,24 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 
 	switch uploadFrom {
 	case "file":
+		if !checkFile(imagePath) {
+			return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
+		}
+
 		file, err := os.Open(imagePath)
 		if err != nil {
-			if os.IsNotExist(err) {
-				return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
-			}
 			return nil, fmt.Errorf("failed to open file!\n%w", err)
 		}
 		defer file.Close()
 
 		reader = file
 	case "url":
+		if imagePath == "" {
+			return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
+		}
+
 		bytes, err := Get(imagePath).AddHeader("User-Agent", UserAgent).Do()
 		if err != nil {
-			if errors.Is(err, ErrorEmptyPath) {
-				return image.NewRGBA(image.Rect(0, 0, 0, 0)), nil
-			}
 			return nil, err
 		}
 
@@ -282,9 +291,15 @@ func imageLoad(imagePath, uploadFrom string) (image.Image, error) {
 }
 
 func checkPixel(oldImg, newImg image.Image) int {
+	if newImg.Bounds() == image.Rect(0, 0, 0, 0) && oldImg.Bounds() != image.Rect(0, 0, 0, 0) {
+		return 4
+	}
+
 	if oldImg.Bounds() == image.Rect(0, 0, 480, 360) && newImg.Bounds() == image.Rect(0, 0, 1280, 720) {
 		return 2
-	} else if oldImg.Bounds() != newImg.Bounds() {
+	}
+
+	if oldImg.Bounds() != newImg.Bounds() {
 		return 0
 	}
 
@@ -298,4 +313,9 @@ func checkPixel(oldImg, newImg image.Image) int {
 	}
 
 	return 1
+}
+
+func checkFile(filepath string) bool {
+	_, err := os.Stat(filepath)
+	return !os.IsNotExist(err)
 }

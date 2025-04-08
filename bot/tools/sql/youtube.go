@@ -23,8 +23,8 @@ func (mySQL *MySQL) FindChannel(channelId string) youtube.Channel {
 	channel.SubscriberCount = handleNullInt(subscriberCount)
 	channel.ViewCount = handleNullInt(viewCount)
 
-	channel.Icon = fmt.Sprintf("/bot/media/Youtube/%s/Icon/%s.jpg", channel.Id, channel.Id)
-	channel.Banner = fmt.Sprintf("/bot/media/Youtube/%s/Banner/%s.jpg", channel.Id, channel.Id)
+	channel.Icon = fmt.Sprintf("/bot/media/%s/Youtube/Icon.jpg", userMap["Youtube"][channel.Id])
+	channel.Banner = fmt.Sprintf("/bot/media/%s/Youtube/Banner.jpg", userMap["Youtube"][channel.Id])
 	channel.Url = fmt.Sprintf("https://www.youtube.com/channel/%s", channel.Id)
 
 	return channel
@@ -60,7 +60,7 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 		video.StartTime = stringToTime(handleNullString(startTime))
 		video.EndTime = stringToTime(handleNullString(endTime))
 
-		video.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", channelId, video.Id)
+		video.Thumbnail = fmt.Sprintf("/bot/media/%s/Youtube/Video/%s.jpg", userMap["Youtube"][channelId], video.Id)
 		video.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", video.Id)
 
 		videos = append(videos, video)
@@ -94,12 +94,15 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 		livestream.LiveStatus = handleNullInt(liveStatus)
 		livestream.ScheduledTime = stringToTime(handleNullString(scheduledTime))
 
+		var path string
+
 		if channelId == livestream.Author.Id {
-			livestream.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", channelId, livestream.Id)
+			path = "Video"
 		} else {
-			livestream.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Collab/%s.jpg", channelId, livestream.Id)
+			path = "Collab"
 		}
 
+		livestream.Thumbnail = fmt.Sprintf("/bot/media/%s/Youtube/%s/%s.jpg", userMap["Youtube"][channelId], path, livestream.Id)
 		livestream.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", livestream.Id)
 		livestream.Author.Url = fmt.Sprintf("https://www.youtube.com/channel/%s", livestream.Author.Id)
 
@@ -131,7 +134,7 @@ func (mySQL *MySQL) FindPlaylists(channelId string) []youtube.Playlist {
 		playlist.Title = handleNullString(title)
 		playlist.Description = handleNullString(description)
 
-		playlist.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Playlist/%s.jpg", channelId, playlist.Id)
+		playlist.Thumbnail = fmt.Sprintf("/bot/media/%s/Youtube/Playlist/%s.jpg", userMap["Youtube"][channelId], playlist.Id)
 		playlist.Url = fmt.Sprintf("https://www.youtube.com/playlist?list=%s", playlist.Id)
 
 		playlists = append(playlists, playlist)
@@ -161,7 +164,7 @@ func (mySQL *MySQL) FindPlaylistItems(playlistId string) []youtube.Video {
 
 		playlistItem.Title = handleNullString(title)
 
-		playlistItem.Thumbnail = fmt.Sprintf("/bot/media/Youtube/%s/Video/%s.jpg", playlistItem.Author.Id, playlistItem.Id)
+		playlistItem.Thumbnail = fmt.Sprintf("/bot/media/%s/Youtube/Video/%s.jpg", userMap["Youtube"][playlistItem.Author.Id], playlistItem.Id)
 		playlistItem.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", playlistItem.Id)
 
 		playlistItems = append(playlistItems, playlistItem)

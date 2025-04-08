@@ -23,8 +23,8 @@ func (mySQL *MySQL) FindTwitterUser(userId string) twitter.User {
 	user.Location = handleNullString(location)
 	user.Pinned = handleNullString(pinned)
 
-	user.Icon = fmt.Sprintf("/bot/media/Twitter/%s/Icon/%s.jpg", user.Id, user.Id)
-	user.Banner = fmt.Sprintf("/bot/media/Twitter/%s/Banner/%s.jpg", user.Id, user.Id)
+	user.Icon = fmt.Sprintf("/bot/media/%s/Twitter/Icon.jpg", userMap["Twitter"][user.Id])
+	user.Banner = fmt.Sprintf("/bot/media/%s/Twitter/Banner.jpg", userMap["Twitter"][user.Id])
 	user.Url = fmt.Sprintf("https://x.com/%s", user.Username)
 
 	return user

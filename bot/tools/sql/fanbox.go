@@ -21,8 +21,8 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	user.Description = handleNullString(description)
 	user.Category = handleNullString(category)
 
-	user.Icon = fmt.Sprintf("/bot/media/Fanbox/%s/Icon/%s.jpg", user.Id, user.Id)
-	user.Banner = fmt.Sprintf("/bot/media/Fanbox/%s/Banner/%s.jpg", user.Id, user.Id)
+	user.Icon = fmt.Sprintf("/bot/media/%s/Fanbox/Icon.jpg", userMap["Fanbox"][userId])
+	user.Banner = fmt.Sprintf("/bot/media/%s/Fanbox/Banner.jpg", userMap["Fanbox"][userId])
 	user.Url = fmt.Sprintf("https://www.pixiv.net/fanbox/creator/%s", user.Id)
 
 	query = "SELECT Link FROM FanboxLink WHERE UserId = ?"
@@ -92,7 +92,7 @@ func (mySQL *MySQL) FindFanboxPlans(userId string) []fanbox.Plan {
 		plan.Fee = handleNullInt(fee)
 		plan.Description = handleNullString(description)
 
-		plan.Image = fmt.Sprintf("/bot/media/Fanbox/%s/Plan/%s.jpg", userId, plan.Id)
+		plan.Image = fmt.Sprintf("/bot/media/%s/Fanbox/Plan/%s.jpg", userMap["Fanbox"][userId], plan.Id)
 
 		plans = append(plans, plan)
 	}
@@ -124,7 +124,7 @@ func (mySQL *MySQL) FindFanboxPosts(userId string) []fanbox.Post {
 		post.Fee = handleNullInt(fee)
 		post.UpdatedTime = stringToTime(handleNullString(updatedTime))
 
-		post.Image = fmt.Sprintf("/bot/media/Fanbox/%s/Post/%s.jpg", userId, post.Id)
+		post.Image = fmt.Sprintf("/bot/media/%s/Fanbox/Post/%s.jpg", userMap["Fanbox"][userId], post.Id)
 
 		posts = append(posts, post)
 	}

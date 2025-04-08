@@ -11,7 +11,11 @@ import (
 
 type Request http.Request
 
-var ErrorEmptyPath = fmt.Errorf("path cannot be empty")
+var (
+	ErrorEmptyPath       = fmt.Errorf("path cannot be empty")
+	ErrorNotFound        = fmt.Errorf("target not found")
+	ErrorTooManyRequests = fmt.Errorf("too many requests")
+)
 
 func Get(path string) *Request {
 	req, _ := http.NewRequest("GET", path, nil)
@@ -55,7 +59,14 @@ func (req *Request) Do() (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to execute HTTP request!\n%w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusNotFound {
+		resp.Body.Close()
+		return nil, ErrorNotFound
+	} else if resp.StatusCode == http.StatusTooManyRequests {
+		resp.Body.Close()
+		return nil, ErrorTooManyRequests
+	} else if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

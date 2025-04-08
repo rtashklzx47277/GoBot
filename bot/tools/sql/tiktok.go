@@ -23,7 +23,7 @@ func (mySQL *MySQL) FindTiktokUser(userId string) tiktok.User {
 	user.Description = handleNullString(description)
 	user.FollowCount = handleNullInt(followCount)
 
-	user.Icon = fmt.Sprintf("/bot/media/Tiktok/%s/Icon/%s.jpg", user.Id, user.Id)
+	user.Icon = fmt.Sprintf("/bot/media/%s/Tiktok/Icon.jpg", userMap["Tiktok"][userId])
 	user.Url = fmt.Sprintf("https://www.tiktok.com/@%s", user.UniqueId)
 
 	return user

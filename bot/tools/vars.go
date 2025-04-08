@@ -159,7 +159,7 @@ var (
 		"Roa": {
 			"Youtube": {
 				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
-				"DiscordChannelId": "872814425046937610",
+				"DiscordChannelId": "872762880200687666",
 			},
 			"Twitter": {
 				"Id":               "1850834672483459072",
@@ -168,7 +168,7 @@ var (
 			},
 			"Fanbox": {
 				"Id":               "69014608",
-				"DiscordChannelId": "872814425046937610",
+				"DiscordChannelId": "872762880200687666",
 			},
 		},
 		"Rinco": {

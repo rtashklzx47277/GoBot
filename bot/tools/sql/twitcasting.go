@@ -20,7 +20,7 @@ func (mySQL *MySQL) FindTwitcastingUser(userId string) twitcasting.User {
 	user.Title = handleNullString(title)
 	user.Description = handleNullString(description)
 
-	user.Icon = fmt.Sprintf("/bot/media/Twitcasting/%s/Icon/%s.jpg", user.Id, user.Id)
+	user.Icon = fmt.Sprintf("/bot/media/%s/Twitcasting/Icon.jpg", userMap["Twitcasting"][userId])
 	user.Url = fmt.Sprintf("https://twitcasting.tv/%s", user.ScreenId)
 
 	return user

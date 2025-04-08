@@ -1,5 +1,9 @@
 package main
 
+// history data
+// twitter post
+// image path
+
 import (
 	"GoBot/tools"
 	"GoBot/tools/discord"
@@ -22,14 +26,13 @@ import (
 )
 
 var (
-	db               *sql.MySQL
-	s                *discordgo.Session
-	collabIds        = []string{}
-	messageIdList    = []string{}
-	channelCache     = map[string]*youtube.Channel{}
-	channelIconCache = map[string]string{}
-	logChannelId     = os.Getenv("DISCORD_LOG_CHANNEL_ID")
-	testChannelId    = os.Getenv("DISCORD_TEST_CHANNEL_ID")
+	db            *sql.MySQL
+	s             *discordgo.Session
+	collabIds     = []string{}
+	messageIdList = []string{}
+	channelCache  = map[string]*youtube.Channel{}
+	logChannelId  = os.Getenv("DISCORD_LOG_CHANNEL_ID")
+	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 
 	commands = []*discordgo.ApplicationCommand{
 		{
@@ -115,7 +118,7 @@ var (
 					panic(err)
 				}
 
-				err = tools.ImageDownload(video.Thumbnail, "Youtube", tools.UserData[user]["Youtube"]["Id"], "Collab", video.Id)
+				err = tools.ImageDownload(video.Thumbnail, user, "Youtube", "Collab", video.Id)
 				if err != nil {
 					panic(err)
 				}
@@ -219,7 +222,7 @@ var (
 					panic(err)
 				}
 
-				err = tools.ImageDownload(video.Thumbnail, "Youtube", tools.UserData[user]["Youtube"]["Id"], "Collab", video.Id)
+				err = tools.ImageDownload(video.Thumbnail, user, "Youtube", "Collab", video.Id)
 				if err != nil {
 					panic(err)
 				}
@@ -250,73 +253,23 @@ var (
 )
 
 func main() {
-	// var err error
-	// db, err = sql.ConnectToMySQL("test", "test", "127.0.0.1", "4450", "mydb")
-	// if err != nil {
-	// 	fmt.Printf("Error connecting to MySQL: %v\n", err)
-	// }
-
-	// users, err := twitter.GetUsers("yuki_sakuna", "sakuna_twintail", "Yuukisakunainfo", "rin_co_co", "roasan___", "kuroa_06", "minatoaqua", "murasakishionch", "shionchan_o")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// for _, user := range users {
-	// 	fmt.Println(user.Id)
-	// 	fmt.Println(user.Username)
-	// 	fmt.Println(user.Name)
-	// 	fmt.Println("=====================================")
-	// }
-
-	// posts, err := twitter.GetTimeline("1512311952114028548", "0")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// for _, post := range posts {
-	// 	db.Insert("TwitterPost", post.Map())
-
-	// 	for i, media := range post.Media {
-	// 		if media.Type == "photo" {
-	// 			err := tools.ImageDownload(media.Url, "Twitter", post.AuthorId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
-	// 			if err != nil {
-	// 				fmt.Println(err)
-	// 			}
-	// 		} else {
-	// 			err := tools.VideoDownload(media.Url, "Twitter", post.AuthorId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
-	// 			if err != nil {
-	// 				fmt.Println(err)
-	// 			}
-	// 		}
-	// 	}
-
-	// 	if post.PollId != "" {
-	// 		fmt.Println(post.Id)
-	// 		for _, option := range post.Options {
-	// 			db.Insert("TwitterPoll", map[string]any{"Id": post.PollId, "Option": option})
-	// 		}
-	// 	}
-	// }
-
 	initial()
 
 	getChat("Aqua", "Shion", "Sakuna")
 
 	for _, name := range []string{"Sakuna", "Roa", "Aqua", "Shion"} {
 		channelId := tools.UserData[name]["Youtube"]["Id"]
-		channelData := db.FindChannel(channelId)
-		channelCache[channelId] = &channelData
-
 		channel, err := youtube.GetChannel(channelId)
 		if err != nil {
 			panic(err)
 		}
-		channelIconCache[channelId] = channel.Icon
+
+		channelCache[channelId] = &youtube.Channel{Title: channel.Title, Url: channel.Url, Icon: channel.Icon}
 	}
 
-	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Aqua": 600, "Shion": 60})
-	// runGo(TwitterNotify, map[string]int{"Sakuna": 300})
-	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Aqua": 3600, "Shion": 300})
+	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 300, "Aqua": 600, "Shion": 60})
+	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 600, "Shion": 600})
+	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 1800, "Aqua": 3600, "Shion": 300})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
 
@@ -335,7 +288,7 @@ func YoutubeStreamNotify(name string) {
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 	channel := channelCache[channelId]
-	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channelIconCache[channelId])
+	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
 
 	videoIds := db.Distinct("video", channelId)
 	videos, err := youtube.GetPlaylistItems(strings.Replace(channelId, "UC", "UU", 1), 3)
@@ -363,7 +316,7 @@ func YoutubeStreamNotify(name string) {
 			panic(err)
 		}
 
-		err = tools.ImageDownload(video.Thumbnail, "Youtube", channelId, "Video", video.Id)
+		err = tools.ImageDownload(video.Thumbnail, name, "Youtube", "Video", video.Id)
 		if err != nil {
 			panic(err)
 		}
@@ -473,11 +426,11 @@ func YoutubeNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(channelData.Icon, channel.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(channel.Icon, "Youtube", channelId, "Icon", channelId)
+		err = tools.ImageDownload(channel.Icon, name, "Youtube", "Icon")
 		if err != nil {
 			panic(err)
 		}
-		channelIconCache[channelId] = channel.Icon
+		channelData.Icon = channel.Icon
 
 		baseEmbed.New("", "", "頻道頭貼更新了！", image).Send(s, discordChannelId)
 	} else if err != nil {
@@ -485,7 +438,7 @@ func YoutubeNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(channelData.Banner, channel.Banner); err == nil && check == 0 {
-		err = tools.ImageDownload(channel.Banner, "Youtube", channelId, "Banner", channelId)
+		err = tools.ImageDownload(channel.Banner, name, "Youtube", "Banner")
 		if err != nil {
 			panic(err)
 		}
@@ -521,7 +474,7 @@ func YoutubeNotify(name string) {
 			}
 		} else if old.Private && !new.Private {
 			// turn to public
-			err = tools.ImageDownload(new.Thumbnail, "Youtube", channelId, "Video", new.Id)
+			err = tools.ImageDownload(new.Thumbnail, name, "Youtube", "Video", new.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -611,7 +564,7 @@ func YoutubeNotify(name string) {
 				}
 
 				if check != 1 {
-					err = tools.ImageDownload(new.Thumbnail, "Youtube", channelId, "Video", new.Id)
+					err = tools.ImageDownload(new.Thumbnail, name, "Youtube", "Video", new.Id)
 					if err != nil {
 						panic(err)
 					}
@@ -668,7 +621,7 @@ func YoutubeNotify(name string) {
 			db.Delete("Playlist", "WHERE Id = ?", playlists.Old.Id)
 			tools.ImageRemove(playlists.Old.Thumbnail)
 		} else if playlists.Old == nil {
-			err = tools.ImageDownload(playlists.New.Thumbnail, "Youtube", channelId, "Playlist", playlists.New.Id)
+			err = tools.ImageDownload(playlists.New.Thumbnail, name, "Youtube", "Playlist", playlists.New.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -696,7 +649,7 @@ func YoutubeNotify(name string) {
 			}
 
 			if check, image, err := tools.ImageCheck(playlists.Old.Thumbnail, playlists.New.Thumbnail); err == nil && check == 0 {
-				err = tools.ImageDownload(playlists.New.Thumbnail, "Youtube", channelId, "Playlist", playlists.New.Id)
+				err = tools.ImageDownload(playlists.New.Thumbnail, name, "Youtube", "Playlist", playlists.New.Id)
 				if err != nil {
 					panic(err)
 				}
@@ -788,7 +741,7 @@ func YoutubeNotify(name string) {
 
 			if post.Renderer.Type == "Image" {
 				for i, image := range post.Renderer.Images {
-					err = tools.ImageDownload(image, "Youtube", channelId, "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+					err = tools.ImageDownload(image, name, "Youtube", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
 					if err != nil {
 						panic(err)
 					}
@@ -825,7 +778,7 @@ func YoutubeNotify(name string) {
 
 	for _, badge := range badges {
 		if !tools.IsContain(badgeIds, badge.Label) {
-			err := tools.ImageDownload(badge.Image, "Youtube", channelId, "Badge", badge.Label)
+			err := tools.ImageDownload(badge.Image, name, "Youtube", "Badge", badge.Label)
 			if err != nil {
 				panic(err)
 			}
@@ -833,8 +786,8 @@ func YoutubeNotify(name string) {
 			baseEmbed.New("", "", fmt.Sprintf("新增了第 %s 個月的徽章", badge.Label), badge.Image).Send(s, discordChannelId)
 			db.Insert("Badge", badge.Map())
 		} else {
-			if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Badge/%s.jpg", channelId, badge.Label), badge.Image); err == nil && check == 0 {
-				err = tools.ImageDownload(badge.Image, "Youtube", channelId, "Badge", badge.Label)
+			if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/%s/Youtube/Badge/%s.jpg", name, badge.Label), badge.Image); err == nil && check == 0 {
+				err = tools.ImageDownload(badge.Image, name, "Youtube", "Badge", badge.Label)
 				if err != nil {
 					panic(err)
 				}
@@ -848,7 +801,7 @@ func YoutubeNotify(name string) {
 
 	for _, stamp := range stamps {
 		if !tools.IsContain(stampIds, stamp.Label) {
-			err := tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
+			err := tools.ImageDownload(stamp.Image, name, "Youtube", "Stamp", stamp.Label)
 			if err != nil {
 				panic(err)
 			}
@@ -856,8 +809,8 @@ func YoutubeNotify(name string) {
 			baseEmbed.New("", "", "新增了自訂表情符號", stamp.Image).Send(s, discordChannelId)
 			db.Insert("Stamp", stamp.Map())
 		} // else {
-		// 	if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/Youtube/%s/Stamp/%s.jpg", channelId, stamp.Label), stamp.Image); err == nil && check == 0 {
-		// 		err = tools.ImageDownload(stamp.Image, "Youtube", channelId, "Stamp", stamp.Label)
+		// 	if check, image, err := tools.ImageCheck(fmt.Sprintf("/bot/media/%s/Youtube/Stamp/%s.jpg", name, stamp.Label), stamp.Image); err == nil && check == 0 {
+		// 		err = tools.ImageDownload(stamp.Image, name, "Youtube", "Stamp", stamp.Label)
 		// 		if err != nil {
 		// 			panic(err)
 		// 		}
@@ -947,17 +900,17 @@ func TwitterNotify(name string) {
 			message = "解除追隨了用戶！"
 		}
 
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s FollowingCount: %d", message, user.LikeCount))
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s %s FollowingCount: %d -> %d", user.Name, message, userData.FollowingCount, user.FollowingCount))
 		db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
 	}
 
 	if userData.LikeCount < user.LikeCount {
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("對新的推文案了喜歡！ LikeCount: %d", user.LikeCount))
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s 對新的推文點了喜歡！ LikeCount: %d -> %d", user.Name, userData.LikeCount, user.LikeCount))
 		db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Twitter", userId, "Icon", userId)
+		err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
 		if err != nil {
 			panic(err)
 		}
@@ -968,7 +921,7 @@ func TwitterNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Banner, "Twitter", userId, "Banner", userId)
+		err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
 		if err != nil {
 			panic(err)
 		}
@@ -1007,7 +960,7 @@ func Collab(name string) {
 			panic(err)
 		}
 
-		err = tools.ImageDownload(video.Thumbnail, "Youtube", channelId, "Collab", video.Id)
+		err = tools.ImageDownload(video.Thumbnail, name, "Youtube", "Collab", video.Id)
 		if err != nil {
 			panic(err)
 		}
@@ -1214,7 +1167,7 @@ func TwitchNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Twitch", userId, "Icon", userId)
+		err = tools.ImageDownload(user.Icon, name, "Twitch", "Icon")
 		if err != nil {
 			panic(err)
 		}
@@ -1225,7 +1178,7 @@ func TwitchNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Thumbnail, user.Thumbnail); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Thumbnail, "Twitch", userId, "Thumbnail", userId)
+		err = tools.ImageDownload(user.Thumbnail, name, "Twitch", "Thumbnail")
 		if err != nil {
 			panic(err)
 		}
@@ -1252,7 +1205,7 @@ func TwitchNotify(name string) {
 			db.Delete("TwitchBadge", "WHERE Id = ?", badges.Old.Id)
 			tools.ImageRemove(badges.Old.Image)
 		} else if badges.Old == nil {
-			err = tools.ImageDownload(badges.New.Image, "Twitch", userId, "Badge", badges.New.Id)
+			err = tools.ImageDownload(badges.New.Image, name, "Twitch", "Badge", badges.New.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -1279,7 +1232,7 @@ func TwitchNotify(name string) {
 			db.Delete("TwitchStamp", "WHERE Id = ?", stamps.Old.Id)
 			tools.ImageRemove(stamps.Old.Image)
 		} else if stamps.Old == nil {
-			err = tools.ImageDownload(stamps.New.Image, "Twitch", userId, "Stamp", stamps.New.Id)
+			err = tools.ImageDownload(stamps.New.Image, name, "Twitch", "Stamp", stamps.New.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -1347,7 +1300,7 @@ func TwitcastingNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Twitcasting", userId, "Icon", userId)
+		err = tools.ImageDownload(user.Icon, name, "Twitcasting", "Icon")
 		if err != nil {
 			panic(err)
 		}
@@ -1413,7 +1366,7 @@ func TiktokNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Tiktok", user.Id, "Icon", user.Id)
+		err = tools.ImageDownload(user.Icon, name, "Tiktok", "Icon")
 		if err != nil {
 			panic(err)
 		}
@@ -1465,7 +1418,7 @@ func FanboxNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, "Fanbox", userId, "Icon", userId)
+		err = tools.ImageDownload(user.Icon, name, "Fanbox", "Icon")
 		if err != nil {
 			panic(err)
 		}
@@ -1476,7 +1429,7 @@ func FanboxNotify(name string) {
 	}
 
 	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Banner, "Fanbox", userId, "Banner", userId)
+		err = tools.ImageDownload(user.Banner, name, "Fanbox", "Banner")
 		if err != nil {
 			panic(err)
 		}
@@ -1561,7 +1514,7 @@ func FanboxNotify(name string) {
 			db.Delete("FanboxPlan", "WHERE Id = ?", plans.Old.Id)
 			tools.ImageRemove(plans.Old.Image)
 		} else if plans.Old == nil {
-			err = tools.ImageDownload(plans.New.Image, "Fanbox", userId, "Plan", plans.New.Id)
+			err = tools.ImageDownload(plans.New.Image, name, "Fanbox", "Plan", plans.New.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -1585,7 +1538,7 @@ func FanboxNotify(name string) {
 			}
 
 			if check, image, err := tools.ImageCheck(plans.Old.Image, plans.New.Image); err == nil && check == 0 {
-				err = tools.ImageDownload(plans.New.Image, "Fanbox", userId, "Plan", plans.New.Id)
+				err = tools.ImageDownload(plans.New.Image, name, "Fanbox", "Plan", plans.New.Id)
 				if err != nil {
 					panic(err)
 				}
@@ -1612,7 +1565,7 @@ func FanboxNotify(name string) {
 
 			baseEmbed.New(posts.Old.Title, "", "投稿文章已被刪除！", image).Send(s, discordChannelId)
 		} else if posts.Old == nil {
-			err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
+			err = tools.ImageDownload(posts.New.Image, name, "Fanbox", "Post", posts.New.Id)
 			if err != nil {
 				panic(err)
 			}
@@ -1636,7 +1589,7 @@ func FanboxNotify(name string) {
 			}
 
 			// if check, image, err := tools.ImageCheck(posts.Old.Image, posts.New.Image); err == nil && check == 0 {
-			// 	err = tools.ImageDownload(posts.New.Image, "Fanbox", userId, "Post", posts.New.Id)
+			// 	err = tools.ImageDownload(posts.New.Image, name, "Fanbox", "Post", posts.New.Id)
 			// 	if err != nil {
 			// 		panic(err)
 			// 	}
@@ -1729,6 +1682,45 @@ func getChat(names ...string) {
 			}
 
 			go LiveChat(videoId, tools.UserData[name]["Youtube"]["DiscordChannelId"])
+		}
+	}
+}
+
+func buildPost() {
+	var err error
+	db, err = sql.ConnectToMySQL("test", "test", "127.0.0.1", "4450", "mydb")
+	if err != nil {
+		fmt.Printf("Error connecting to MySQL: %v\n", err)
+	}
+
+	userId := "1512311952114028548"
+	posts, err := twitter.GetTimeline(userId, "0")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, post := range posts {
+		db.Insert("TwitterPost", post.Map())
+
+		for i, media := range post.Media {
+			if media.Type == "photo" {
+				err := tools.ImageDownload(media.Url, "Sakuna", "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+				if err != nil {
+					fmt.Println(err)
+				}
+			} else {
+				err := tools.VideoDownload(media.Url, "Sakuna", "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+		}
+
+		if post.PollId != "" {
+			fmt.Println(post.Id)
+			for _, option := range post.Options {
+				db.Insert("TwitterPoll", map[string]any{"Id": post.PollId, "Option": option})
+			}
 		}
 	}
 }

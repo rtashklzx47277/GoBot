@@ -3,6 +3,7 @@ package twitter
 import (
 	"GoBot/tools"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -25,15 +26,26 @@ var (
 )
 
 func getData(path string, queries ...string) (*tools.Json, error) {
-	req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[count%8+6]))
+	var reader io.ReadCloser
+	var err error
 
-	for i := 0; i < len(queries); i += 2 {
-		req = req.AddQuery(queries[i], queries[i+1])
-	}
+	for {
+		req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[count%8+1]))
 
-	reader, err := req.Do()
-	if err != nil {
-		return &tools.Json{}, err
+		for i := 0; i < len(queries); i += 2 {
+			req = req.AddQuery(queries[i], queries[i+1])
+		}
+
+		reader, err = req.Do()
+		if err == tools.ErrorTooManyRequests {
+			fmt.Println("Too many requests...")
+			count++
+			continue
+		} else if err != nil {
+			return &tools.Json{}, err
+		}
+
+		break
 	}
 
 	data, err := tools.ToJson(reader)

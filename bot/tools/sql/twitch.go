@@ -27,8 +27,8 @@ func (mySQL *MySQL) FindTwitchUser(userId string) twitch.User {
 	user.FollowTime = handleNullInt(followTime)
 	user.SlowTime = handleNullInt(slowTime)
 
-	user.Icon = fmt.Sprintf("/bot/media/Twitch/%s/Icon/%s.jpg", user.Id, user.Id)
-	user.Thumbnail = fmt.Sprintf("/bot/media/Twitch/%s/Thumbnail/%s.jpg", user.Id, user.Id)
+	user.Icon = fmt.Sprintf("/bot/media/%s/Twitch/Icon.jpg", userMap["Twitch"][userId])
+	user.Thumbnail = fmt.Sprintf("/bot/media/%s/Twitch/Thumbnail.jpg", userMap["Twitch"][userId])
 	user.Url = fmt.Sprintf("https://www.twitch.tv/%s", user.LoginId)
 
 	return user
@@ -85,7 +85,7 @@ func (mySQL *MySQL) FindTwitchBadges(userId string) []twitch.Badge {
 		badge.Title = handleNullString(title)
 		badge.Description = handleNullString(description)
 
-		badge.Image = fmt.Sprintf("/bot/media/Twitch/%s/Badge/%s.jpg", userId, badge.Id)
+		badge.Image = fmt.Sprintf("/bot/media/%s/Twitch/Badge/%s.jpg", userMap["Twitch"][userId], badge.Id)
 
 		badges = append(badges, badge)
 	}
@@ -117,7 +117,7 @@ func (mySQL *MySQL) FindTwitchStamps(userId string) []twitch.Stamp {
 		stamp.Type = handleNullString(typeName)
 		stamp.Format = handleNullString(format)
 
-		stamp.Image = fmt.Sprintf("/bot/media/Twitch/%s/Stamp/%s.jpg", userId, stamp.Id)
+		stamp.Image = fmt.Sprintf("/bot/media/%s/Twitch/Stamp/%s.jpg", userMap["Twitch"][userId], stamp.Id)
 
 		stamps = append(stamps, stamp)
 	}
