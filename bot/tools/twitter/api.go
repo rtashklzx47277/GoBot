@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -39,7 +40,7 @@ func getData(path string, queries ...string) (*tools.Json, error) {
 
 		reader, err = req.Do()
 		if errors.Is(err, tools.ErrorTooManyRequests) {
-			fmt.Println("Too many requests...")
+			fmt.Printf("Too many requests... (key no.%d)\n", count%8+1)
 			count++
 			continue
 		} else if err != nil {
@@ -69,9 +70,10 @@ func GetUser(username string) (User, error) {
 		Id:             item.Get("id").String(),
 		Username:       item.Get("username").String(),
 		Name:           item.Get("name").String(),
-		Url:            item.Get("entities").Get("url").Get("urls").Index(0).Get("expanded_url").String(),
+		Link:           item.Get("entities").Get("url").Get("urls").Index(0).Get("expanded_url").String(),
 		Description:    item.Get("description").String(),
 		Location:       item.Get("location").String(),
+		Latest:         item.Get("most_recent_tweet_id").String(),
 		Pinned:         item.Get("pinned_tweet_id").String(),
 		Icon:           item.Get("profile_image_url").Replace("_normal", "", 1),
 		Banner:         item.Get("profile_banner_url").String(),
@@ -81,6 +83,9 @@ func GetUser(username string) (User, error) {
 		FollowingCount: item.Get("public_metrics").Get("following_count").Int(),
 		LikeCount:      item.Get("public_metrics").Get("like_count").Int(),
 	}
+
+	user.Url = fmt.Sprintf("https://x.com/%s", user.Username)
+
 	count++
 	return user, nil
 }
@@ -133,13 +138,14 @@ func GetUsername(userId string) (string, error) {
 func GetTimeline(userId, sinceId string) ([]Post, error) {
 	var posts []Post
 
+	since, _ := strconv.Atoi(sinceId)
 	url := fmt.Sprintf("https://api.twitter.com/2/users/%s/tweets", userId)
 	data, err := getData(url,
-		"max_results", "5",
-		// "since_id", sinceId,
+		"max_results", "100",
+		"since_id", strconv.Itoa(since+1),
 		"media.fields", "type,url,variants",
 		"poll.fields", "id,options,end_datetime",
-		"tweet.fields", "id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
+		"tweet.fields", "id,author_id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
 		"expansions", "attachments.media_keys,attachments.poll_ids")
 	if err != nil {
 		return []Post{}, fmt.Errorf("failed to get user data!\n%w", err)
@@ -155,7 +161,7 @@ func GetTimeline(userId, sinceId string) ([]Post, error) {
 			if mediaType == "photo" {
 				mediaUrl = media.Get("url").String()
 			} else if mediaType == "video" {
-				mediaUrl = media.Get("variants").Index(-2).String()
+				mediaUrl = media.Get("variants").Index(-2).Get("url").String()
 			}
 
 			mediaMap[mediaId] = Media{
@@ -253,8 +259,11 @@ func getPosts(postId ...string) ([]Post, error) {
 func getPostStruct(data *tools.Json) Post {
 	post := Post{
 		Id:          data.Get("id").String(),
+		AuthorId:    data.Get("author_id").String(),
 		CreatedTime: data.Get("created_at").Time(),
 	}
+
+	post.Url = fmt.Sprintf("https://x.com/x/status/%s", post.Id)
 
 	if data.Exist("referenced_tweets") {
 		referencedType := data.Get("referenced_tweets").Index(0).Get("type").String()
@@ -300,9 +309,6 @@ func getPostStruct(data *tools.Json) Post {
 		post.PollId = data.Get("attachments").Get("poll_ids").Index(0).String()
 		post.Options = pollMap[post.PollId]
 	}
-
-	post.Url = fmt.Sprintf("https://x.com/x/status/%s", post.Id)
-	post.AuthorId = data.Get("author_id").String()
 
 	return post
 }

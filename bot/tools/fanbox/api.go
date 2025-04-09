@@ -106,7 +106,7 @@ func GetPlan(userId string) ([]Plan, error) {
 }
 
 func GetPost(userId string) ([]Post, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=100", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=300", userId)
 	data, err := getData(url)
 	if err != nil {
 		return []Post{}, err

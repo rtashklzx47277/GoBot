@@ -2,7 +2,6 @@ package main
 
 // history data
 // twitter post
-// image path
 
 import (
 	"GoBot/tools"
@@ -255,7 +254,7 @@ var (
 func main() {
 	initial()
 
-	getChat("Aqua", "Shion", "Sakuna")
+	getChat("Sakuna", "Roa", "Aqua", "Shion")
 
 	for _, name := range []string{"Sakuna", "Roa", "Aqua", "Shion"} {
 		channelId := tools.UserData[name]["Youtube"]["Id"]
@@ -267,8 +266,8 @@ func main() {
 	}
 
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 300, "Aqua": 600, "Shion": 60})
-	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 600, "Shion": 600})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 1800, "Aqua": 3600, "Shion": 300})
+	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 600, "Shion": 600})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
 
@@ -760,7 +759,7 @@ func YoutubeNotify(name string) {
 		}
 	}
 
-	if channelId != "UCrV1Hf5r8P148idjoSfrGEQ" {
+	if name == "Aqua" || name == "Roa" {
 		return
 	}
 
@@ -769,7 +768,7 @@ func YoutubeNotify(name string) {
 	oldPerks := db.FindPerks(channelId)
 	badges, stamps, newPerks, err := youtube.GetMemberShip(channelId)
 	if errors.Is(err, youtube.ErrorNoMembership) {
-		s.ChannelMessageSend(logChannelId, "Youtube會員Cookie可能已過期！")
+		s.ChannelMessageSend(logChannelId, fmt.Sprintf("%s Youtube會員Cookie可能已過期！", name))
 		return
 	} else if err != nil {
 		panic(err)
@@ -829,105 +828,6 @@ func YoutubeNotify(name string) {
 			baseEmbed.New(perks.New.Title, "", "新增了會員福利！", "").Send(s, discordChannelId)
 			db.Insert("Perk", perks.New.Map())
 		}
-	}
-}
-
-func TwitterNotify(name string) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "Twitter", name)
-			tools.ErrorRecord(r)
-		}
-	}()
-
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
-
-	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
-
-	userData := db.FindTwitterUser(userId)
-	user, err := twitter.GetUser(username)
-	if err != nil {
-		panic(err)
-	}
-
-	baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
-
-	if userId != user.Id {
-		newUsername, err := twitter.GetUsername(userId)
-		if err != nil {
-			panic(err)
-		}
-
-		baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
-		db.Update("TwitterUser", userId, "Username", newUsername)
-		tools.UserData[name]["Twitter"]["Username"] = newUsername
-
-		return
-	}
-
-	if userData.Name != user.Name {
-		baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Name, user.Name).Send(s, discordChannelId)
-		db.Update("TwitterUser", userId, "Name", user.Name)
-	}
-
-	if userData.Description != user.Description {
-		baseEmbed.New("", "", "用戶介紹欄更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
-		db.Update("TwitterUser", userId, "Description", user.Description)
-	}
-
-	if userData.Location != user.Location {
-		baseEmbed.New("", "", "用戶位置更新了！", "").Change(userData.Location, user.Location).Send(s, discordChannelId)
-		db.Update("TwitterUser", userId, "Location", user.Location)
-	}
-
-	if userData.Pinned != user.Pinned {
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("釘選了新的推文！ https://x.com/x/status/%s", user.Pinned))
-		db.Update("TwitterUser", userId, "Pinned", user.Pinned)
-	}
-
-	if userData.FollowersCount/10000 < user.FollowersCount/10000 {
-		baseEmbed.New("", "", fmt.Sprintf("Twitter追隨者數已突破%d萬人了！", user.FollowersCount/10000), user.Icon).Send(s, discordChannelId)
-		db.Update("TwitterUser", userId, "FollowersCount", user.FollowersCount)
-	}
-
-	if userData.FollowingCount != user.FollowingCount && user.FollowingCount != 0 {
-		var message string
-
-		if userData.FollowingCount < user.FollowingCount {
-			message = "追隨了新的用戶！"
-		} else {
-			message = "解除追隨了用戶！"
-		}
-
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s %s FollowingCount: %d -> %d", user.Name, message, userData.FollowingCount, user.FollowingCount))
-		db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
-	}
-
-	if userData.LikeCount < user.LikeCount {
-		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s 對新的推文點了喜歡！ LikeCount: %d -> %d", user.Name, userData.LikeCount, user.LikeCount))
-		db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
-	}
-
-	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
-		if err != nil {
-			panic(err)
-		}
-
-		baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
-	} else if err != nil {
-		panic(err)
-	}
-
-	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
-		err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
-		if err != nil {
-			panic(err)
-		}
-
-		baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
-	} else if err != nil {
-		panic(err)
 	}
 }
 
@@ -1003,6 +903,172 @@ func Collab(name string) {
 		})
 
 		collabIds = append(collabIds, video.Id)
+	}
+}
+
+func TwitterNotify(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Twitter", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
+
+	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
+
+	userData := db.FindTwitterUser(userId)
+	user, err := twitter.GetUser(username)
+	if err != nil {
+		panic(err)
+	}
+
+	baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
+
+	if userId != user.Id {
+		newUsername, err := twitter.GetUsername(userId)
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Username", newUsername)
+		tools.UserData[name]["Twitter"]["Username"] = newUsername
+
+		return
+	}
+
+	if userData.Name != user.Name {
+		baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Name, user.Name).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Name", user.Name)
+	}
+
+	if userData.Description != user.Description {
+		baseEmbed.New("", "", "用戶介紹欄更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Description", user.Description)
+	}
+
+	if userData.Location != user.Location {
+		baseEmbed.New("", "", "用戶位置更新了！", "").Change(userData.Location, user.Location).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Location", user.Location)
+	}
+
+	if userData.Link != user.Link {
+		baseEmbed.New("", "", "用戶連結更新了！", "").Change(userData.Link, user.Link).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "Link", user.Link)
+	}
+
+	if userData.Pinned != user.Pinned {
+		var message string
+
+		if user.Pinned == "" {
+			message = fmt.Sprintf("取消釘選了推文！ https://x.com/x/status/%s", userData.Pinned)
+		} else {
+			message = fmt.Sprintf("釘選了新的推文！ https://x.com/x/status/%s", user.Pinned)
+		}
+
+		s.ChannelMessageSend(discordChannelId, message)
+		db.Update("TwitterUser", userId, "Pinned", user.Pinned)
+	}
+
+	if userData.FollowersCount/10000 < user.FollowersCount/10000 {
+		baseEmbed.New("", "", fmt.Sprintf("Twitter追隨者數已突破%d萬人了！", user.FollowersCount/10000), user.Icon).Send(s, discordChannelId)
+		db.Update("TwitterUser", userId, "FollowersCount", user.FollowersCount)
+	}
+
+	if userData.FollowingCount != user.FollowingCount && user.FollowingCount != 0 {
+		var message string
+
+		if userData.FollowingCount < user.FollowingCount {
+			message = "追隨了新的用戶！"
+		} else {
+			message = "解除追隨了用戶！"
+		}
+
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s %s FollowingCount: %d -> %d", user.Name, message, userData.FollowingCount, user.FollowingCount))
+		db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
+	}
+
+	if userData.LikeCount < user.LikeCount {
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s 對新的推文點了喜歡！ LikeCount: %d -> %d", user.Name, userData.LikeCount, user.LikeCount))
+		db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
+	}
+
+	if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
+		err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
+	} else if err != nil {
+		panic(err)
+	}
+
+	if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
+		err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
+		if err != nil {
+			panic(err)
+		}
+
+		baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
+	} else if err != nil {
+		panic(err)
+	}
+}
+
+func TweetNotify(name string) {
+	defer func() {
+		if r := recover(); r != nil {
+			tools.DiscordNotify(s, "Tweet", name)
+			tools.ErrorRecord(r)
+		}
+	}()
+
+	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tweet")
+
+	userId, discordChannelId := tools.UserData[name]["Twitter"]["Id"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	user := db.FindTwitterUser(userId)
+
+	posts, err := twitter.GetTimeline(userId, user.Latest)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, post := range posts {
+		for i, media := range post.Media {
+			if media.Type == "photo" {
+				err := tools.ImageDownload(media.Url, name, "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				fmt.Println(media.Url)
+				err := tools.VideoDownload(media.Url, name, "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+
+		if post.PollId != "" {
+			for _, option := range post.Options {
+				db.Insert("TwitterPoll", map[string]any{"Id": post.PollId, "Option": option})
+			}
+		}
+
+		var message string
+		if post.IsRetweeted {
+			message = "轉推了一則推文！"
+		} else if post.IsReplied {
+			message = "回覆了一則推文！"
+		} else {
+			message = "發布了新的推文！"
+		}
+
+		s.ChannelMessageSend(fmt.Sprintf("%s(@%s) %s %s", user.Name, user.Username, message, post.Url), discordChannelId)
+		db.Insert("TwitterPost", post.Map())
 	}
 }
 
@@ -1681,45 +1747,6 @@ func getChat(names ...string) {
 			}
 
 			go LiveChat(videoId, tools.UserData[name]["Youtube"]["DiscordChannelId"])
-		}
-	}
-}
-
-func buildPost() {
-	var err error
-	db, err = sql.ConnectToMySQL("test", "test", "127.0.0.1", "4450", "mydb")
-	if err != nil {
-		fmt.Printf("Error connecting to MySQL: %v\n", err)
-	}
-
-	userId := "1512311952114028548"
-	posts, err := twitter.GetTimeline(userId, "0")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	for _, post := range posts {
-		db.Insert("TwitterPost", post.Map())
-
-		for i, media := range post.Media {
-			if media.Type == "photo" {
-				err := tools.ImageDownload(media.Url, "Sakuna", "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
-				if err != nil {
-					fmt.Println(err)
-				}
-			} else {
-				err := tools.VideoDownload(media.Url, "Sakuna", "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
-				if err != nil {
-					fmt.Println(err)
-				}
-			}
-		}
-
-		if post.PollId != "" {
-			fmt.Println(post.Id)
-			for _, option := range post.Options {
-				db.Insert("TwitterPoll", map[string]any{"Id": post.PollId, "Option": option})
-			}
 		}
 	}
 }

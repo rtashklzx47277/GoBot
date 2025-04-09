@@ -9,6 +9,8 @@ type User struct {
 	Url            string
 	Description    string
 	Location       string
+	Link           string
+	Latest         string
 	Pinned         string
 	Icon           string
 	Banner         string
@@ -48,6 +50,8 @@ func (user User) Map() map[string]any {
 		"Name":           user.Name,
 		"Description":    user.Description,
 		"Location":       user.Location,
+		"Link":           user.Link,
+		"Latest":         user.Latest,
 		"Pinned":         user.Pinned,
 		"Protected":      user.Protected,
 		"Verified":       user.Verified,
@@ -70,7 +74,7 @@ func (post Post) Map() map[string]any {
 		"IsQuoted":     post.IsQuoted,
 		"ReferencedId": post.ReferencedId,
 		"EditedId":     post.EditedId,
-		"PollId":       post.Id,
+		"PollId":       post.PollId,
 	}
 
 	return postMap

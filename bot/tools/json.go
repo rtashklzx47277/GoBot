@@ -233,3 +233,13 @@ func (js *Json) Duration() Duration {
 
 	return Duration(ds)
 }
+
+// for debug
+func (js *Json) ToString() string {
+	jsonBytes, err := json.Marshal(js)
+	if err != nil {
+		return ""
+	}
+
+	return string(jsonBytes)
+}
