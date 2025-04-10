@@ -268,6 +268,7 @@ func main() {
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 300, "Aqua": 600, "Shion": 60})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 1800, "Aqua": 3600, "Shion": 300})
 	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 600, "Shion": 600})
+	runGo(TweetNotify, map[string]int{"Sakuna": 120})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
 
@@ -1036,7 +1037,9 @@ func TweetNotify(name string) {
 		panic(err)
 	}
 
-	for _, post := range posts {
+	for i := len(posts) - 1; i >= 0; i-- {
+		post := posts[i]
+
 		for i, media := range post.Media {
 			if media.Type == "photo" {
 				err := tools.ImageDownload(media.Url, name, "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
@@ -1067,8 +1070,9 @@ func TweetNotify(name string) {
 			message = "發布了新的推文！"
 		}
 
-		s.ChannelMessageSend(fmt.Sprintf("%s(@%s) %s %s", user.Name, user.Username, message, post.Url), discordChannelId)
+		s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s(@%s) %s %s", user.Name, user.Username, message, post.Url))
 		db.Insert("TwitterPost", post.Map())
+		db.Update("TwitterUser", userId, "Latest", post.Id)
 	}
 }
 

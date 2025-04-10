@@ -59,18 +59,19 @@ func (req *Request) Do() (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to execute HTTP request!\n%w", err)
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		resp.Body.Close()
-		return nil, ErrorNotFound
-	} else if resp.StatusCode == http.StatusTooManyRequests {
-		resp.Body.Close()
-		return nil, ErrorTooManyRequests
-	} else if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	if resp.StatusCode == http.StatusOK {
+		return resp.Body, nil
 	}
 
-	return resp.Body, nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrorNotFound
+	} else if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, ErrorTooManyRequests
+	}
+
+	return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 }
 
 func ToString(reader io.ReadCloser) (string, error) {

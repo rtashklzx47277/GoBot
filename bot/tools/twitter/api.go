@@ -4,7 +4,6 @@ import (
 	"GoBot/tools"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -21,41 +20,49 @@ var (
 		7: os.Getenv("TWITTER_BEARER_TOKEN_7"),
 		8: os.Getenv("TWITTER_BEARER_TOKEN_8"),
 	}
-	mediaMap     = map[string]Media{}
-	pollMap      = map[string][]string{}
-	historyTweet = []string{}
-	count        = 0
+	mediaMap = map[string]Media{}
+	pollMap  = map[string][]string{}
+	counter1 = 0
+	counter2 = 0
 )
 
 func getData(path string, queries ...string) (*tools.Json, error) {
-	var reader io.ReadCloser
-	var err error
+	var count *int
+	var message string
 
-	for {
-		req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[count%8+1]))
+	if strings.Contains(path, "tweets") {
+		count = &counter1
+		message = " tweets"
+	} else {
+		count = &counter2
+	}
+
+	for range 8 {
+		no := *count%8 + 1
+		req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[no]))
 
 		for i := 0; i < len(queries); i += 2 {
 			req = req.AddQuery(queries[i], queries[i+1])
 		}
 
-		reader, err = req.Do()
+		reader, err := req.Do()
 		if errors.Is(err, tools.ErrorTooManyRequests) {
-			fmt.Printf("Too many requests... (key no.%d)\n", count%8+1)
-			count++
+			fmt.Printf("too many%s requests... (token no.%d)\n", message, no)
+			*count++
 			continue
 		} else if err != nil {
 			return &tools.Json{}, err
 		}
 
-		break
+		data, err := tools.ToJson(reader)
+		if err != nil {
+			return &tools.Json{}, err
+		}
+
+		return data, nil
 	}
 
-	data, err := tools.ToJson(reader)
-	if err != nil {
-		return &tools.Json{}, err
-	}
-
-	return data, nil
+	return &tools.Json{}, nil
 }
 
 func GetUser(username string) (User, error) {
@@ -86,7 +93,6 @@ func GetUser(username string) (User, error) {
 
 	user.Url = fmt.Sprintf("https://x.com/%s", user.Username)
 
-	count++
 	return user, nil
 }
 
@@ -148,7 +154,7 @@ func GetTimeline(userId, sinceId string) ([]Post, error) {
 		"tweet.fields", "id,author_id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
 		"expansions", "attachments.media_keys,attachments.poll_ids")
 	if err != nil {
-		return []Post{}, fmt.Errorf("failed to get user data!\n%w", err)
+		return []Post{}, fmt.Errorf("failed to get user tweets!\n%w", err)
 	}
 
 	for _, media := range data.Get("includes").Get("media").JsonArray() {
@@ -187,72 +193,6 @@ func GetTimeline(userId, sinceId string) ([]Post, error) {
 		posts = append(posts, post)
 	}
 
-	if len(historyTweet) > 0 {
-		histories, err := getPosts(historyTweet...)
-		if err != nil {
-			return []Post{}, err
-		}
-
-		posts = append(posts, histories...)
-	}
-
-	count++
-	return posts, nil
-}
-
-func getPosts(postId ...string) ([]Post, error) {
-	var posts []Post
-
-	url := "https://api.twitter.com/2/tweets"
-	data, err := getData(url,
-		"ids", strings.Join(postId, ","),
-		"media.fields", "type,url,variants",
-		"poll.fields", "id,options,end_datetime",
-		"tweet.fields", "id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
-		"expansions", "attachments.media_keys,attachments.poll_ids")
-	if err != nil {
-		return []Post{}, fmt.Errorf("failed to get user data!\n%w", err)
-	}
-
-	for _, media := range data.Get("includes").Get("media").JsonArray() {
-		mediaId := media.Get("media_key").String()
-
-		if _, ok := mediaMap[mediaId]; !ok {
-			var mediaUrl string
-			mediaType := media.Get("type").String()
-
-			if mediaType == "photo" {
-				mediaUrl = media.Get("url").String()
-			} else if mediaType == "video" {
-				mediaUrl = media.Get("variants").Index(-2).Get("url").String()
-			} else if mediaType == "animated_gif" {
-				mediaUrl = media.Get("variants").Index(0).Get("url").String()
-			}
-
-			mediaMap[mediaId] = Media{
-				Id:   mediaId,
-				Type: mediaType,
-				Url:  mediaUrl,
-			}
-		}
-	}
-
-	for _, poll := range data.Get("includes").Get("polls").JsonArray() {
-		pollId := poll.Get("id").String()
-
-		if _, ok := pollMap[pollId]; !ok {
-			for _, option := range poll.Get("options").JsonArray() {
-				pollMap[pollId] = append(pollMap[pollId], option.Get("label").String())
-			}
-		}
-	}
-
-	for _, item := range data.Get("data").JsonArray() {
-		post := getPostStruct(item)
-		posts = append(posts, post)
-	}
-
-	count++
 	return posts, nil
 }
 
@@ -295,14 +235,8 @@ func getPostStruct(data *tools.Json) Post {
 
 	ids := data.Get("edit_history_tweet_ids").Array()
 	idsLen := len(ids)
-	if idsLen > 1 {
-		if ids[idsLen-1] == post.Id {
-			for _, this := range ids[:idsLen-1] {
-				historyTweet = append(historyTweet, this.(string))
-			}
-		} else {
-			post.EditedId = ids[idsLen-1].(string)
-		}
+	if idsLen > 1 && ids[idsLen-1] != post.Id {
+		post.EditedId = ids[idsLen-1].(string)
 	}
 
 	if data.Get("attachments").Exist("poll_ids") {
