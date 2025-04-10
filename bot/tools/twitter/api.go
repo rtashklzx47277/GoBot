@@ -28,18 +28,15 @@ var (
 
 func getData(path string, queries ...string) (*tools.Json, error) {
 	var count *int
-	var message string
 
 	if strings.Contains(path, "tweets") {
 		count = &counter1
-		message = " tweets"
 	} else {
 		count = &counter2
 	}
 
 	for range 8 {
-		no := *count%8 + 1
-		req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[no]))
+		req := tools.Get(path).AddHeader("Authorization", fmt.Sprintf("Bearer %s", bearerTokenList[*count%8+1]))
 
 		for i := 0; i < len(queries); i += 2 {
 			req = req.AddQuery(queries[i], queries[i+1])
@@ -47,7 +44,6 @@ func getData(path string, queries ...string) (*tools.Json, error) {
 
 		reader, err := req.Do()
 		if errors.Is(err, tools.ErrorTooManyRequests) {
-			fmt.Printf("too many%s requests... (token no.%d)\n", message, no)
 			*count++
 			continue
 		} else if err != nil {
@@ -62,13 +58,15 @@ func getData(path string, queries ...string) (*tools.Json, error) {
 		return data, nil
 	}
 
-	return &tools.Json{}, nil
+	return &tools.Json{}, tools.ErrorTooManyRequests
 }
 
 func GetUser(username string) (User, error) {
 	url := fmt.Sprintf("https://api.twitter.com/2/users/by/username/%s", username)
 	data, err := getData(url, "user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return User{}, tools.ErrorTooManyRequests
+	} else if err != nil {
 		return User{}, fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
@@ -103,7 +101,9 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	data, err := getData(url,
 		"usernames", strings.Join(usernames, ","),
 		"user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return map[string]User{}, tools.ErrorTooManyRequests
+	} else if err != nil {
 		return map[string]User{}, fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
@@ -134,7 +134,9 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 func GetUsername(userId string) (string, error) {
 	url := fmt.Sprintf("https://api.twitter.com/2/users/%s", userId)
 	data, err := getData(url, "user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return "", tools.ErrorTooManyRequests
+	} else if err != nil {
 		return "", fmt.Errorf("failed to get user data!\n%w", err)
 	}
 
@@ -153,7 +155,9 @@ func GetTimeline(userId, sinceId string) ([]Post, error) {
 		"poll.fields", "id,options,end_datetime",
 		"tweet.fields", "id,author_id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
 		"expansions", "attachments.media_keys,attachments.poll_ids")
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return []Post{}, tools.ErrorTooManyRequests
+	} else if err != nil {
 		return []Post{}, fmt.Errorf("failed to get user tweets!\n%w", err)
 	}
 

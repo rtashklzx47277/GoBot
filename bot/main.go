@@ -921,7 +921,10 @@ func TwitterNotify(name string) {
 
 	userData := db.FindTwitterUser(userId)
 	user, err := twitter.GetUser(username)
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		fmt.Println("Out of quota! Please wait... ")
+		return
+	} else if err != nil {
 		panic(err)
 	}
 
@@ -929,7 +932,10 @@ func TwitterNotify(name string) {
 
 	if userId != user.Id {
 		newUsername, err := twitter.GetUsername(userId)
-		if err != nil {
+		if errors.Is(err, tools.ErrorTooManyRequests) {
+			fmt.Println("Out of quota! Please wait... ")
+			return
+		} else if err != nil {
 			panic(err)
 		}
 
@@ -1033,7 +1039,10 @@ func TweetNotify(name string) {
 	user := db.FindTwitterUser(userId)
 
 	posts, err := twitter.GetTimeline(userId, user.Latest)
-	if err != nil {
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		fmt.Println("Out of tweet quota! Please wait... ")
+		return
+	} else if err != nil {
 		panic(err)
 	}
 
