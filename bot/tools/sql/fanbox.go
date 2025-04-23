@@ -101,7 +101,7 @@ func (mySQL *MySQL) FindFanboxPlans(userId string) []fanbox.Plan {
 }
 
 func (mySQL *MySQL) FindFanboxPosts(userId string) []fanbox.Post {
-	query := "SELECT Id, UserId, Title, Fee, UpdatedTime FROM FanboxPost WHERE UserId = ?"
+	query := "SELECT Id, UserId, Title, Fee, UpdatedTime, Deleted FROM FanboxPost WHERE UserId = ?"
 	rows, err := mySQL.db.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
@@ -115,7 +115,7 @@ func (mySQL *MySQL) FindFanboxPosts(userId string) []fanbox.Post {
 		var title, updatedTime sql.NullString
 		var fee sql.NullInt64
 
-		err := rows.Scan(&post.Id, &post.UserId, &title, &fee, &updatedTime)
+		err := rows.Scan(&post.Id, &post.UserId, &title, &fee, &updatedTime, &post.Deleted)
 		if err != nil {
 			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}

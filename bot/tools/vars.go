@@ -99,7 +99,7 @@ var (
 			"Twitter": {
 				"Id":               "1024528894940987392",
 				"Username":         "minatoaqua",
-				"DiscordChannelId": "1320729508688695338",
+				"DiscordChannelId": "872762880200687666",
 			},
 			"Twitch": {
 				"Id":               "738746247",
@@ -122,7 +122,7 @@ var (
 			"Twitter": {
 				"Id":               "1024533638879166464",
 				"Username":         "murasakishionch",
-				"DiscordChannelId": "1320729508688695338",
+				"DiscordChannelId": "872762880200687666",
 			},
 			"Twitch": {
 				"Id":               "773041510",
@@ -159,16 +159,16 @@ var (
 		"Roa": {
 			"Youtube": {
 				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "872814425046937610",
 			},
 			"Twitter": {
 				"Id":               "1850834672483459072",
 				"Username":         "roasan___",
-				"DiscordChannelId": "1320729508688695338",
+				"DiscordChannelId": "872814425046937610",
 			},
 			"Fanbox": {
 				"Id":               "69014608",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "872814425046937610",
 			},
 		},
 		"Rinco": {
@@ -179,7 +179,7 @@ var (
 			"Twitter": {
 				"Id":               "2902558987",
 				"Username":         "rin_co_co",
-				"DiscordChannelId": "1320729508688695338",
+				"DiscordChannelId": "872762880200687666",
 			},
 		},
 		"DesuRinco": {
@@ -196,7 +196,7 @@ var (
 			"Twitter": {
 				"Id":               "781803201041313792",
 				"Username":         "kuroa_06",
-				"DiscordChannelId": "1320729508688695338",
+				"DiscordChannelId": "872762880200687666",
 			},
 		},
 	}

@@ -40,6 +40,7 @@ type Post struct {
 	Image         string
 	PublishedTime tools.Time
 	UpdatedTime   tools.Time
+	Deleted       bool
 }
 
 type ZipItem struct {
@@ -100,6 +101,7 @@ func (post Post) Map() map[string]any {
 		"Fee":           post.Fee,
 		"PublishedTime": post.PublishedTime.String(),
 		"UpdatedTime":   post.UpdatedTime.String(),
+		"Deleted":       false,
 	}
 
 	return postMap

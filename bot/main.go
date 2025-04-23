@@ -1,7 +1,6 @@
 package main
 
 // history data
-// twitter post
 
 import (
 	"GoBot/tools"
@@ -267,7 +266,7 @@ func main() {
 
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 300, "Aqua": 600, "Shion": 60})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 1800, "Aqua": 3600, "Shion": 300})
-	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 600, "Shion": 600})
+	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 1800, "Shion": 1800})
 	runGo(TweetNotify, map[string]int{"Sakuna": 120})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
@@ -917,7 +916,7 @@ func TwitterNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
 
-	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
 
 	userData := db.FindTwitterUser(userId)
 	user, err := twitter.GetUser(username)
@@ -1035,7 +1034,7 @@ func TweetNotify(name string) {
 
 	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tweet")
 
-	userId, discordChannelId := tools.UserData[name]["Twitter"]["Id"], testChannelId // tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	userId, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
 	user := db.FindTwitterUser(userId)
 
 	posts, err := twitter.GetTimeline(userId, user.Latest)
@@ -1636,12 +1635,15 @@ func FanboxNotify(name string) {
 
 	for _, posts := range fanbox.GroupPost(oldPosts, newPosts) {
 		if posts.New == nil {
-			image, err := tools.ImageUpload(posts.Old.Image)
-			if err != nil {
-				panic(err)
-			}
+			if !posts.Old.Deleted {
+				image, err := tools.ImageUpload(posts.Old.Image)
+				if err != nil {
+					panic(err)
+				}
 
-			baseEmbed.New(posts.Old.Title, "", "投稿文章已被刪除！", image).Send(s, discordChannelId)
+				baseEmbed.New(posts.Old.Title, "", "投稿文章已被刪除！", image).Send(s, discordChannelId)
+				db.Update("FanboxPost", posts.Old.Id, "Deleted", true)
+			}
 		} else if posts.Old == nil {
 			err = tools.ImageDownload(posts.New.Image, name, "Fanbox", "Post", posts.New.Id)
 			if err != nil {
