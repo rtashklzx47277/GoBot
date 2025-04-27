@@ -212,9 +212,9 @@ func getMessageData(action *tools.Json, videoId, discordChannelId string) {
 			fmt.Printf("Error getting renderer from addLiveChatTickerItemAction!\n%s\n", youtube.ToJSON(item))
 		}
 	} else if action.Exist("updateLiveChatPollAction") {
-		liveChatPoll(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"))
+		liveChatPoll(action.Get("updateLiveChatPollAction").Get("pollToUpdate").Get("pollRenderer"), videoId, discordChannelId)
 	} else if action.Exist("showLiveChatActionPanelAction") {
-		liveChatPoll(action.Get("showLiveChatActionPanelAction").Get("panelToShow").Get("liveChatActionPanelRenderer").Get("contents").Get("pollRenderer"))
+		liveChatPoll(action.Get("showLiveChatActionPanelAction").Get("panelToShow").Get("liveChatActionPanelRenderer").Get("contents").Get("pollRenderer"), videoId, discordChannelId)
 	} else if action.Exist("addBannerToLiveChatCommand") { // 釘選
 		item := action.Get("addBannerToLiveChatCommand").Get("bannerRenderer").Get("liveChatBannerRenderer").Get("contents")
 
@@ -293,19 +293,22 @@ func rendererProcessor(renderer *tools.Json, form, videoId, discordChannelId str
 	db.Insert("Message", message.Map())
 }
 
-func liveChatPoll(renderer *tools.Json) {
+func liveChatPoll(renderer *tools.Json, videoId, discordChannelId string) {
 	id := renderer.Get("liveChatPollId").String()
 	if id == "" || tools.IsContain(messageIdList, id) {
 		return
 	}
 	messageIdList = append(messageIdList, id)
 
-	text := fmt.Sprintf("已發起投票: %s", youtube.ParseRun(renderer.Get("header").Get("pollHeaderRenderer").Get("pollQuestion")))
+	videoTitle := removeEmoji(db.FindVideoTitle(videoId))
+	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoId)
+
+	text := fmt.Sprintf("已發起投票: %s [%s](<%s>)", youtube.ParseRun(renderer.Get("header").Get("pollHeaderRenderer").Get("pollQuestion")), videoTitle, videoUrl)
 	for _, choice := range renderer.Get("choices").JsonArray() {
 		text += fmt.Sprintf("\n- %s", youtube.ParseRun(choice.Get("text")))
 	}
 
-	s.ChannelMessageSend(testChannelId, text)
+	s.ChannelMessageSend(discordChannelId, text)
 }
 
 func liveChatSetting(renderer *tools.Json) {

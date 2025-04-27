@@ -159,16 +159,16 @@ var (
 		"Roa": {
 			"Youtube": {
 				"Id":               "UCLIpj4TmXviSTNE_U5WG_Ug",
-				"DiscordChannelId": "872814425046937610",
+				"DiscordChannelId": "1366057922513211604",
 			},
 			"Twitter": {
 				"Id":               "1850834672483459072",
 				"Username":         "roasan___",
-				"DiscordChannelId": "872814425046937610",
+				"DiscordChannelId": "1366057458392371410",
 			},
 			"Fanbox": {
 				"Id":               "69014608",
-				"DiscordChannelId": "872814425046937610",
+				"DiscordChannelId": "1366058120526434345",
 			},
 		},
 		"Rinco": {

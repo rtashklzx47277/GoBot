@@ -3,7 +3,7 @@ module GoBot
 go 1.24
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.2
+	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/go-sql-driver/mysql v1.9.2
 	github.com/hashicorp/golang-lru v1.0.2

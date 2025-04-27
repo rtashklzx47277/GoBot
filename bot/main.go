@@ -24,13 +24,14 @@ import (
 )
 
 var (
-	db            *sql.MySQL
-	s             *discordgo.Session
-	collabIds     = []string{}
-	messageIdList = []string{}
-	channelCache  = map[string]*youtube.Channel{}
-	logChannelId  = os.Getenv("DISCORD_LOG_CHANNEL_ID")
-	testChannelId = os.Getenv("DISCORD_TEST_CHANNEL_ID")
+	db                 *sql.MySQL
+	s                  *discordgo.Session
+	collabIds          = []string{}
+	messageIdList      = []string{}
+	channelCache       = map[string]*youtube.Channel{}
+	logChannelId       = os.Getenv("DISCORD_LOG_CHANNEL_ID")
+	testChannelId      = os.Getenv("DISCORD_TEST_CHANNEL_ID")
+	milestoneChannelId = os.Getenv("DISCORD_MILESTONE_CHANNEL_ID")
 
 	commands = []*discordgo.ApplicationCommand{
 		{
@@ -264,9 +265,9 @@ func main() {
 		channelCache[channelId] = &youtube.Channel{Title: channel.Title, Url: channel.Url, Icon: channel.Icon}
 	}
 
-	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 300, "Aqua": 600, "Shion": 60})
-	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 1800, "Aqua": 3600, "Shion": 300})
-	runGo(TwitterNotify, map[string]int{"Sakuna": 300, "Roa": 600, "Aqua": 1800, "Shion": 1800})
+	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 60, "Aqua": 600, "Shion": 600})
+	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 3600, "Shion": 3600})
+	runGo(TwitterNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 1800, "Shion": 1800})
 	runGo(TweetNotify, map[string]int{"Sakuna": 120})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
@@ -547,11 +548,8 @@ func YoutubeNotify(name string) {
 			// 	db.Update("Video", new.Id, "EndTime", new.EndTime.String())
 			// }
 
-			if old.Music && ((new.ViewCount < 1000000 && new.ViewCount/100000 > old.ViewCount/100000) || (new.ViewCount >= 1000000 && new.ViewCount/500000 > old.ViewCount/500000)) {
-				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, discordChannelId)
-				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
-			} else if !old.Music && new.ViewCount/100000 > old.ViewCount/100000 {
-				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, testChannelId)
+			if new.ViewCount/100000 > old.ViewCount/100000 {
+				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, milestoneChannelId)
 				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
 			}
 
@@ -703,7 +701,7 @@ func YoutubeNotify(name string) {
 	for _, comment := range comments {
 		if !tools.IsContain(commentIds, comment.Id) {
 			comment = db.CompelteComment(comment)
-			s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
+			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
 				db.FindChannelTitle(comment.Author.Id), comment.Author.Url, channel.Title, channel.Url, db.FindVideoTitle(comment.Video.Id), comment.Video.Url, strings.Replace(comment.Text, "\n", "\n> ", -1)))
 			db.Insert("Comment", comment.Map())
 		}
@@ -716,7 +714,7 @@ func YoutubeNotify(name string) {
 		for _, reply := range replies {
 			if !tools.IsContain(replyIds, reply.Id) {
 				reply = db.CompelteComment(reply)
-				s.ChannelMessageSend(testChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
+				s.ChannelMessageSend(discordChannelId, fmt.Sprintf("「[%s](<%s>)」在「[%s](<%s>)」的影片「[%s](<%s>)」中發表留言：\n> %s",
 					db.FindChannelTitle(reply.Author.Id), reply.Author.Url, channel.Title, channel.Url, db.FindVideoTitle(reply.Video.Id), reply.Video.Url, strings.Replace(reply.Text, "\n", "\n> ", -1)))
 				db.Insert("Comment", reply.Map())
 			}
