@@ -21,7 +21,7 @@ func getData(path string) (*tools.Json, error) {
 }
 
 func GetUser(userId string) (User, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/creator.get?userId=%s", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/creator.get?creatorId=%s", userId)
 	data, err := getData(url)
 	if err != nil {
 		return User{}, err
@@ -81,7 +81,7 @@ func GetUser(userId string) (User, error) {
 }
 
 func GetPlan(userId string) ([]Plan, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/plan.listCreator?userId=%s", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/plan.listCreator?creatorId=%s", userId)
 	data, err := getData(url)
 	if err != nil {
 		return []Plan{}, err
@@ -106,7 +106,7 @@ func GetPlan(userId string) ([]Plan, error) {
 }
 
 func GetPost(userId string) ([]Post, error) {
-	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?userId=%s&limit=300", userId)
+	url := fmt.Sprintf("https://api.fanbox.cc/post.listCreator?creatorId=%s&limit=300", userId)
 	data, err := getData(url)
 	if err != nil {
 		return []Post{}, err

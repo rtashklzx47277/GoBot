@@ -153,6 +153,7 @@ var (
 			},
 			"Fanbox": {
 				"Id":               "80355000",
+				"CreatorId":        "yukisakuna",
 				"DiscordChannelId": "1300328308705198132",
 			},
 		},
@@ -168,6 +169,7 @@ var (
 			},
 			"Fanbox": {
 				"Id":               "69014608",
+				"CreatorId":        "roachan",
 				"DiscordChannelId": "1366058120526434345",
 			},
 		},
@@ -199,5 +201,44 @@ var (
 				"DiscordChannelId": "872762880200687666",
 			},
 		},
+		"SakunaInfo": {
+			"Twitter": {
+				"Id":               "1857716233757667335",
+				"Username":         "Yuukisakunainfo",
+				"DiscordChannelId": "872762880200687666",
+			},
+		},
+		"SakunaRadio": {
+			"Twitter": {
+				"Id":               "1869731321217687552",
+				"Username":         "sakuna_twintail",
+				"DiscordChannelId": "872762880200687666",
+			},
+		},
 	}
 )
+
+func GetUsersData(names ...string) ([]string, map[string]map[string]string) {
+	var usernames []string
+	var userData map[string]map[string]string
+
+	for _, name := range names {
+		username := UserData[name]["Twitter"]["Username"]
+		usernames = append(usernames, username)
+		userData[username]["Name"] = name
+		userData[username]["Id"] = UserData[name]["Twitter"]["Id"]
+		userData[username]["DiscordChannelId"] = UserData[name]["Twitter"]["DiscordChannelId"]
+	}
+
+	return usernames, userData
+}
+
+func GetUsername(userId string) string {
+	for _, data := range UserData {
+		if data["Twitter"]["Id"] == userId {
+			return data["Twitter"]["Username"]
+		}
+	}
+
+	return ""
+}

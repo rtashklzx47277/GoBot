@@ -59,6 +59,13 @@ func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, erro
 	return &MySQL{db}, nil
 }
 
+func (mySQL *MySQL) Exec(query string, values ...any) {
+	_, err := mySQL.db.Exec(query, values...)
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to exec query!\n%v", err))
+	}
+}
+
 func (mySQL *MySQL) Insert(table string, data map[string]any) {
 	var columns []string
 	var values []any

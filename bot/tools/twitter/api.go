@@ -98,9 +98,7 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	users := map[string]User{}
 
 	url := "https://api.twitter.com/2/users/by"
-	data, err := getData(url,
-		"usernames", strings.Join(usernames, ","),
-		"user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
+	data, err := getData(url, "usernames", strings.Join(usernames, ","), "user.fields", "id,name,username")
 	if errors.Is(err, tools.ErrorTooManyRequests) {
 		return map[string]User{}, tools.ErrorTooManyRequests
 	} else if err != nil {
@@ -109,20 +107,9 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 
 	for _, item := range data.Get("data").JsonArray() {
 		user := User{
-			Id:             item.Get("id").String(),
-			Username:       item.Get("username").String(),
-			Name:           item.Get("name").String(),
-			Url:            item.Get("entities").Get("url").Get("urls").Index(0).Get("expanded_url").String(),
-			Description:    item.Get("description").String(),
-			Location:       item.Get("location").String(),
-			Pinned:         item.Get("pinned_tweet_id").String(),
-			Icon:           item.Get("profile_image_url").Replace("_normal", "", 1),
-			Banner:         item.Get("profile_banner_url").String(),
-			Protected:      item.Get("protected").Bool(),
-			Verified:       item.Get("verified").Bool(),
-			FollowersCount: item.Get("public_metrics").Get("followers_count").Int(),
-			FollowingCount: item.Get("public_metrics").Get("following_count").Int(),
-			LikeCount:      item.Get("public_metrics").Get("like_count").Int(),
+			Id:       item.Get("id").String(),
+			Username: item.Get("username").String(),
+			Name:     item.Get("name").String(),
 		}
 
 		users[user.Username] = user
@@ -131,9 +118,33 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	return users, nil
 }
 
+func GetUsersById(userIds ...string) ([]User, error) {
+	var users []User
+
+	url := "https://api.twitter.com/2/users"
+	data, err := getData(url, "ids", strings.Join(userIds, ","), "user.fields", "id,name,username")
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return []User{}, tools.ErrorTooManyRequests
+	} else if err != nil {
+		return []User{}, fmt.Errorf("failed to get user data!\n%w", err)
+	}
+
+	for _, item := range data.Get("data").JsonArray() {
+		user := User{
+			Id:       item.Get("id").String(),
+			Username: item.Get("username").String(),
+			Name:     item.Get("name").String(),
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 func GetUsername(userId string) (string, error) {
 	url := fmt.Sprintf("https://api.twitter.com/2/users/%s", userId)
-	data, err := getData(url, "user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
+	data, err := getData(url, "user.fields", "id,name,username")
 	if errors.Is(err, tools.ErrorTooManyRequests) {
 		return "", tools.ErrorTooManyRequests
 	} else if err != nil {
@@ -195,6 +206,70 @@ func GetTimeline(userId, sinceId string) ([]Post, error) {
 	for _, item := range data.Get("data").JsonArray() {
 		post := getPostStruct(item)
 		posts = append(posts, post)
+	}
+
+	return posts, nil
+}
+
+func GetTimelines(sinceId string, usernames ...string) (map[string][]Post, error) {
+	posts := map[string][]Post{}
+
+	formattedNames := make([]string, len(usernames))
+	for i, username := range usernames {
+		formattedNames[i] = fmt.Sprintf("from:%s", username)
+	}
+	query := fmt.Sprintf("(%s) include:nativeretweets", strings.Join(formattedNames, " OR "))
+
+	since, _ := strconv.Atoi(sinceId)
+	url := "https://api.twitter.com/2/tweets/search/recent"
+	data, err := getData(url,
+		"query", query,
+		"max_results", "100",
+		"since_id", strconv.Itoa(since+1),
+		"media.fields", "type,url,variants",
+		"poll.fields", "id,options,end_datetime",
+		"tweet.fields", "id,author_id,created_at,text,entities,referenced_tweets,edit_history_tweet_ids",
+		"expansions", "attachments.media_keys,attachments.poll_ids")
+	if errors.Is(err, tools.ErrorTooManyRequests) {
+		return map[string][]Post{}, tools.ErrorTooManyRequests
+	} else if err != nil {
+		return map[string][]Post{}, fmt.Errorf("failed to get user tweets!\n%w", err)
+	}
+
+	for _, media := range data.Get("includes").Get("media").JsonArray() {
+		mediaId := media.Get("media_key").String()
+
+		if _, ok := mediaMap[mediaId]; !ok {
+			var mediaUrl string
+			mediaType := media.Get("type").String()
+
+			if mediaType == "photo" {
+				mediaUrl = media.Get("url").String()
+			} else if mediaType == "video" {
+				mediaUrl = media.Get("variants").Index(-2).Get("url").String()
+			}
+
+			mediaMap[mediaId] = Media{
+				Id:   mediaId,
+				Type: mediaType,
+				Url:  mediaUrl,
+			}
+		}
+	}
+
+	for _, poll := range data.Get("includes").Get("polls").JsonArray() {
+		pollId := poll.Get("id").String()
+
+		if _, ok := pollMap[pollId]; !ok {
+			for _, option := range poll.Get("options").JsonArray() {
+				pollMap[pollId] = append(pollMap[pollId], option.Get("label").String())
+			}
+		}
+	}
+
+	for _, item := range data.Get("data").JsonArray() {
+		post := getPostStruct(item)
+		posts[tools.GetUsername(post.AuthorId)] = append(posts[tools.GetUsername(post.AuthorId)], post)
 	}
 
 	return posts, nil
