@@ -334,11 +334,11 @@ func main() {
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 60, "Aqua": 600, "Shion": 600})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 3600, "Shion": 3600})
 	runGo(TwitterNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 1800, "Shion": 1800})
-	// runGo2(TwitterNotifyAll, 300, "SakunaInfo", "SakunaRadio")
 	runGo(TweetNotify, map[string]int{"Sakuna": 120})
-	// runGo2(TweetNotifyAll, 120, "Roa", "SakunaInfo", "SakunaRadio")
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
 	runGo(Collab, map[string]int{"Shion": 600})
+	runGo2(TwitterNotifyAll, 600, "SakunaInfo", "SakunaRadio")
+	runGo2(TweetNotifyAll, 120, "Roa", "SakunaInfo", "SakunaRadio")
 
 	select {}
 }
@@ -351,7 +351,7 @@ func YoutubeStreamNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube Live")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Youtube Live")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 	channel := channelCache[channelId]
@@ -451,7 +451,7 @@ func YoutubeNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Youtube")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Youtube")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 	channelData := db.FindChannel(channelId)
@@ -905,7 +905,7 @@ func Collab(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Collab")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Collab")
 
 	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
 
@@ -980,7 +980,7 @@ func TwitterNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitter")
 
 	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
 
@@ -1091,15 +1091,21 @@ func TwitterNotify(name string) {
 }
 
 func TwitterNotifyAll(names ...string) {
+	defer func() {
+		if r := recover(); r != nil {
+			data := r.([]any)
+			tools.DiscordNotify(s, "Twitter", data[0].(string))
+			tools.ErrorRecord(data[1].(error))
+		}
+	}()
+
 	usernames, usersData := tools.GetUsersData(names...)
 	users, err := twitter.GetUsers(usernames...)
 	if errors.Is(err, tools.ErrorTooManyRequests) {
 		fmt.Println("Out of tweet quota! Please wait... ")
 		return
 	} else if err != nil {
-		tools.DiscordNotify(s, "Twitter", "All")
-		tools.ErrorRecord(err)
-		return
+		panic([]any{"All", err})
 	}
 
 	for username, user := range users {
@@ -1114,9 +1120,7 @@ func TwitterNotifyAll(names ...string) {
 				fmt.Println("Out of quota! Please wait... ")
 				return
 			} else if err != nil {
-				tools.DiscordNotify(s, "Twitter", name)
-				tools.ErrorRecord(err)
-				continue
+				panic([]any{name, err})
 			}
 
 			baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
@@ -1178,41 +1182,32 @@ func TwitterNotifyAll(names ...string) {
 		}
 
 		if userData.LikeCount < user.LikeCount {
-			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s 對新的推文點了喜歡！ LikeCount: %d -> %d", user.Name, userData.LikeCount, user.LikeCount))
 			db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
 		}
 
 		if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
 			err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
 			if err != nil {
-				tools.DiscordNotify(s, "Twitter", name)
-				tools.ErrorRecord(err)
-				continue
+				panic([]any{name, err})
 			}
 
 			baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
 		} else if err != nil {
-			tools.DiscordNotify(s, "Twitter", name)
-			tools.ErrorRecord(err)
-			continue
+			panic([]any{name, err})
 		}
 
 		if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
 			err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
 			if err != nil {
-				tools.DiscordNotify(s, "Twitter", name)
-				tools.ErrorRecord(err)
-				continue
+				panic([]any{name, err})
 			}
 
 			baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
 		} else if err != nil {
-			tools.DiscordNotify(s, "Twitter", name)
-			tools.ErrorRecord(err)
-			continue
+			panic([]any{name, err})
 		}
 
-		fmt.Printf("%-10s %-20s notification end!\n", name, "Twitter")
+		fmt.Printf("%-15s %-20s notification end!\n", name, "Twitter")
 	}
 }
 
@@ -1224,7 +1219,7 @@ func TweetNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tweet")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Tweet")
 
 	userId, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
 	user := db.FindTwitterUser(userId)
@@ -1277,6 +1272,14 @@ func TweetNotify(name string) {
 }
 
 func TweetNotifyAll(names ...string) {
+	defer func() {
+		if r := recover(); r != nil {
+			data := r.([]any)
+			tools.DiscordNotify(s, "Tweet", data[0].(string))
+			tools.ErrorRecord(data[1].(error))
+		}
+	}()
+
 	usernames, usersData := tools.GetUsersData(names...)
 	latestId := db.FindLatestTweetId(usernames...)
 	postsData, err := twitter.GetTimelines(latestId, usernames...)
@@ -1284,9 +1287,7 @@ func TweetNotifyAll(names ...string) {
 		fmt.Println("Out of tweet quota! Please wait... ")
 		return
 	} else if err != nil {
-		tools.DiscordNotify(s, "Tweet", "All")
-		tools.ErrorRecord(err)
-		return
+		panic([]any{"All", err})
 	}
 
 	for username, posts := range postsData {
@@ -1300,17 +1301,13 @@ func TweetNotifyAll(names ...string) {
 				if media.Type == "photo" {
 					err := tools.ImageDownload(media.Url, name, "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
 					if err != nil {
-						tools.DiscordNotify(s, "Tweet", name)
-						tools.ErrorRecord(name)
-						continue
+						panic([]any{name, err})
 					}
 				} else {
 					fmt.Println(media.Url)
 					err := tools.VideoDownload(media.Url, name, "Twitter", "Post", fmt.Sprintf("%s_%d", post.Id, i+1))
 					if err != nil {
-						tools.DiscordNotify(s, "Tweet", name)
-						tools.ErrorRecord(name)
-						continue
+						panic([]any{name, err})
 					}
 				}
 			}
@@ -1335,7 +1332,7 @@ func TweetNotifyAll(names ...string) {
 			db.Update("TwitterUser", userId, "Latest", post.Id)
 		}
 
-		fmt.Printf("%-10s %-20s notification end!\n", name, "Tweet")
+		fmt.Printf("%-15s %-20s notification end!\n", name, "Tweet")
 	}
 }
 
@@ -1347,7 +1344,7 @@ func TwitchStreamNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitch Live")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitch Live")
 
 	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
 
@@ -1381,7 +1378,7 @@ func TwitchNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitch")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitch")
 
 	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
 
@@ -1583,7 +1580,7 @@ func TwitcastingStreamNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitcasting Live")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitcasting Live")
 
 	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
 	user := db.FindTwitcastingUser(userId)
@@ -1609,7 +1606,7 @@ func TwitcastingNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Twitcasting")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitcasting")
 
 	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
 
@@ -1651,7 +1648,7 @@ func TiktokNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Tiktok")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Tiktok")
 
 	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], testChannelId //tools.UserData[name]["Tiktok"]["DiscordChannelId"]
 
@@ -1717,7 +1714,7 @@ func FanboxNotify(name string) {
 		}
 	}()
 
-	defer fmt.Printf("%-10s %-20s notification end!\n", name, "Fanbox")
+	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Fanbox")
 
 	userId, creatorId, discordChannelId := tools.UserData[name]["Fanbox"]["Id"], tools.UserData[name]["Fanbox"]["CreatorId"], tools.UserData[name]["Fanbox"]["DiscordChannelId"]
 
@@ -1978,17 +1975,17 @@ func initial() {
 
 	appID, guildID := os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID")
 
-	registeredCommands, err := s.ApplicationCommands(appID, guildID)
-	if err != nil {
-		log.Fatalf("Failed to get command: %v", err)
-	}
+	// registeredCommands, err := s.ApplicationCommands(appID, guildID)
+	// if err != nil {
+	// 	log.Fatalf("Failed to get command: %v", err)
+	// }
 
-	for _, command := range registeredCommands {
-		err := s.ApplicationCommandDelete(appID, guildID, command.ID)
-		if err != nil {
-			log.Printf("Failed to delete command %s: %v", command.Name, err)
-		}
-	}
+	// for _, command := range registeredCommands {
+	// 	err := s.ApplicationCommandDelete(appID, guildID, command.ID)
+	// 	if err != nil {
+	// 		log.Printf("Failed to delete command %s: %v", command.Name, err)
+	// 	}
+	// }
 
 	for _, command := range commands {
 		_, err := s.ApplicationCommandCreate(appID, guildID, command)
@@ -2026,6 +2023,8 @@ func runGo(f func(string), names map[string]int) {
 
 func runGo2(f func(...string), interval int, names ...string) {
 	go func() {
+		f(names...)
+
 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
 		defer ticker.Stop()
 

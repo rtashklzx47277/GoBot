@@ -35,14 +35,15 @@ func (mySQL *MySQL) FindTwitterUser(userId string) twitter.User {
 
 func (mySQL *MySQL) FindLatestTweetId(userIds ...string) string {
 	var latestId sql.NullString
-
 	var placeholders []string
-	for range userIds {
+	var args []any
+	for _, userId := range userIds {
+		args = append(args, userId)
 		placeholders = append(placeholders, "?")
 	}
 
-	query := fmt.Sprintf("SELECT MAX(CAST(Latest AS UNSIGNED)) FROM TwitterUser WHERE UserId IN (%s)", strings.Join(placeholders, ", "))
-	err := mySQL.db.QueryRow(query, userIds).Scan(&latestId)
+	query := fmt.Sprintf("SELECT MAX(CAST(Latest AS UNSIGNED)) FROM TwitterUser WHERE Username IN (%s)", strings.Join(placeholders, ", "))
+	err := mySQL.db.QueryRow(query, args...).Scan(&latestId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

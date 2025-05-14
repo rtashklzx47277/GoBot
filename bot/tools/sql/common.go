@@ -22,6 +22,8 @@ var userMap = map[string]map[string]string{
 		"1850834672483459072": "Roa",
 		"1024528894940987392": "Aqua",
 		"1024533638879166464": "Shion",
+		"1857716233757667335": "SakunaInfo",
+		"1869731321217687552": "SakunaRadio",
 	},
 	"Fanbox": {
 		"80355000": "Sakuna",

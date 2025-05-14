@@ -220,14 +220,12 @@ var (
 
 func GetUsersData(names ...string) ([]string, map[string]map[string]string) {
 	var usernames []string
-	var userData map[string]map[string]string
+	userData := make(map[string]map[string]string)
 
 	for _, name := range names {
 		username := UserData[name]["Twitter"]["Username"]
 		usernames = append(usernames, username)
-		userData[username]["Name"] = name
-		userData[username]["Id"] = UserData[name]["Twitter"]["Id"]
-		userData[username]["DiscordChannelId"] = UserData[name]["Twitter"]["DiscordChannelId"]
+		userData[username] = map[string]string{"Name": name, "Id": UserData[name]["Twitter"]["Id"], "DiscordChannelId": UserData[name]["Twitter"]["DiscordChannelId"]}
 	}
 
 	return usernames, userData

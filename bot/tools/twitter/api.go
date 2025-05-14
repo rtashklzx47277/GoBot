@@ -98,7 +98,7 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	users := map[string]User{}
 
 	url := "https://api.twitter.com/2/users/by"
-	data, err := getData(url, "usernames", strings.Join(usernames, ","), "user.fields", "id,name,username")
+	data, err := getData(url, "usernames", strings.Join(usernames, ","), "user.fields", "id,name,username,description,entities,location,most_recent_tweet_id,pinned_tweet_id,profile_banner_url,profile_image_url,protected,public_metrics,verified")
 	if errors.Is(err, tools.ErrorTooManyRequests) {
 		return map[string]User{}, tools.ErrorTooManyRequests
 	} else if err != nil {
@@ -107,9 +107,21 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 
 	for _, item := range data.Get("data").JsonArray() {
 		user := User{
-			Id:       item.Get("id").String(),
-			Username: item.Get("username").String(),
-			Name:     item.Get("name").String(),
+			Id:             item.Get("id").String(),
+			Username:       item.Get("username").String(),
+			Name:           item.Get("name").String(),
+			Link:           item.Get("entities").Get("url").Get("urls").Index(0).Get("expanded_url").String(),
+			Description:    item.Get("description").String(),
+			Location:       item.Get("location").String(),
+			Latest:         item.Get("most_recent_tweet_id").String(),
+			Pinned:         item.Get("pinned_tweet_id").String(),
+			Icon:           item.Get("profile_image_url").Replace("_normal", "", 1),
+			Banner:         item.Get("profile_banner_url").String(),
+			Protected:      item.Get("protected").Bool(),
+			Verified:       item.Get("verified").Bool(),
+			FollowersCount: item.Get("public_metrics").Get("followers_count").Int(),
+			FollowingCount: item.Get("public_metrics").Get("following_count").Int(),
+			LikeCount:      item.Get("public_metrics").Get("like_count").Int(),
 		}
 
 		users[user.Username] = user
@@ -218,13 +230,14 @@ func GetTimelines(sinceId string, usernames ...string) (map[string][]Post, error
 	for i, username := range usernames {
 		formattedNames[i] = fmt.Sprintf("from:%s", username)
 	}
-	query := fmt.Sprintf("(%s) include:nativeretweets", strings.Join(formattedNames, " OR "))
+	query := strings.Join(formattedNames, " OR ")
 
 	since, _ := strconv.Atoi(sinceId)
 	url := "https://api.twitter.com/2/tweets/search/recent"
 	data, err := getData(url,
 		"query", query,
 		"max_results", "100",
+		"sort_order", "recency",
 		"since_id", strconv.Itoa(since+1),
 		"media.fields", "type,url,variants",
 		"poll.fields", "id,options,end_datetime",
