@@ -1099,6 +1099,8 @@ func TwitterNotifyAll(names ...string) {
 		}
 	}()
 
+	defer fmt.Printf("%-15s %-20s notification end!\n", "All", "Twitter")
+
 	usernames, usersData := tools.GetUsersData(names...)
 	users, err := twitter.GetUsers(usernames...)
 	if errors.Is(err, tools.ErrorTooManyRequests) {
@@ -1206,8 +1208,6 @@ func TwitterNotifyAll(names ...string) {
 		} else if err != nil {
 			panic([]any{name, err})
 		}
-
-		fmt.Printf("%-15s %-20s notification end!\n", name, "Twitter")
 	}
 }
 
@@ -1280,6 +1280,8 @@ func TweetNotifyAll(names ...string) {
 		}
 	}()
 
+	defer fmt.Printf("%-15s %-20s notification end!\n", "All", "Tweet")
+
 	usernames, usersData := tools.GetUsersData(names...)
 	latestId := db.FindLatestTweetId(usernames...)
 	postsData, err := twitter.GetTimelines(latestId, usernames...)
@@ -1331,8 +1333,6 @@ func TweetNotifyAll(names ...string) {
 			db.Insert("TwitterPost", post.Map())
 			db.Update("TwitterUser", userId, "Latest", post.Id)
 		}
-
-		fmt.Printf("%-15s %-20s notification end!\n", name, "Tweet")
 	}
 }
 
