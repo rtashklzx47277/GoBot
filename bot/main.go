@@ -320,7 +320,7 @@ var (
 func main() {
 	initial()
 
-	getChat("Sakuna", "Roa", "Aqua", "Shion")
+	getChat("Sakuna", "Roa")
 
 	for _, name := range []string{"Sakuna", "Roa", "Aqua", "Shion"} {
 		channelId := tools.UserData[name]["Youtube"]["Id"]
@@ -540,29 +540,8 @@ func YoutubeNotify(name string) {
 				db.Update("Video", old.Id, "Private", new.Private)
 			}
 		} else if old.Private && !new.Private {
-			// turn to public
-			err = tools.ImageDownload(new.Thumbnail, name, "Youtube", "Video", new.Id)
-			if err != nil {
-				panic(err)
-			}
-
-			commentIds := db.Distinct("comment", channelId)
-			comments, err := youtube.GetComments("video", new.Id)
-			if err != nil {
-				panic(err)
-			}
-
-			for _, comment := range comments {
-				if !tools.IsContain(commentIds, comment.Id) {
-					db.Insert("Comment", comment.Map())
-				}
-			}
-			// turn to public
-
 			baseEmbed.New(new.Title, new.Url, "影片已設為公開了！", new.Thumbnail).Send(s, discordChannelId)
-			db.Update("Video", new.Id, "Title", new.Title, "Description", new.Description, "Length", new.Length.String(), "ViewCount", new.ViewCount, "LiveStatus", new.LiveStatus,
-				"PublishedTime", new.PublishedTime.String(), "ScheduledTime", new.ScheduledTime.String(), "StartTime", new.StartTime.String(), "EndTime", new.EndTime.String(),
-				"Comment", new.Comment, "Live", new.Live, "Private", new.Private)
+			db.Update("Video", new.Id, "Private", new.Private)
 		} else if !old.Private && !new.Private {
 			if old.Comment && !new.Comment {
 				baseEmbed.New(new.Title, new.Url, "影片留言功能已停用！", new.Thumbnail).Send(s, discordChannelId)
@@ -616,7 +595,7 @@ func YoutubeNotify(name string) {
 			// 	db.Update("Video", new.Id, "EndTime", new.EndTime.String())
 			// }
 
-			if new.ViewCount/100000 > old.ViewCount/100000 {
+			if old.ViewCount/100000 < new.ViewCount/100000 {
 				baseEmbed.New(new.Title, new.Url, fmt.Sprintf("影片觀看次數已突破%d萬次了！", new.ViewCount/10000), new.Thumbnail).Send(s, milestoneChannelId)
 				db.Update("Video", new.Id, "ViewCount", new.ViewCount)
 			}
@@ -1973,25 +1952,9 @@ func initial() {
 		fmt.Println("Bot is running...")
 	})
 
-	appID, guildID := os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID")
-
-	// registeredCommands, err := s.ApplicationCommands(appID, guildID)
-	// if err != nil {
-	// 	log.Fatalf("Failed to get command: %v", err)
-	// }
-
-	// for _, command := range registeredCommands {
-	// 	err := s.ApplicationCommandDelete(appID, guildID, command.ID)
-	// 	if err != nil {
-	// 		log.Printf("Failed to delete command %s: %v", command.Name, err)
-	// 	}
-	// }
-
-	for _, command := range commands {
-		_, err := s.ApplicationCommandCreate(appID, guildID, command)
-		if err != nil {
-			log.Fatalf("Failed to create command %s: %v", command.Name, err)
-		}
+	err = syncCommands(false, s)
+	if err != nil {
+		log.Fatalf("Failed to sync commands: %v", err)
 	}
 
 	err = s.Open()
@@ -2034,13 +1997,45 @@ func runGo2(f func(...string), interval int, names ...string) {
 	}()
 }
 
+func syncCommands(check bool, s *discordgo.Session) error {
+	if !check {
+		return nil
+	}
+
+	appID, guildID := os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID")
+
+	registeredCommands, err := s.ApplicationCommands(appID, guildID)
+	if err != nil {
+		return err
+	}
+
+	registeredMap := make(map[string]*discordgo.ApplicationCommand)
+	for _, command := range registeredCommands {
+		registeredMap[command.Name] = command
+	}
+
+	for _, command := range commands {
+		if existingCmd, exists := registeredMap[command.Name]; exists {
+			if existingCmd.Description != command.Description {
+				_, err := s.ApplicationCommandEdit(appID, guildID, existingCmd.ID, command)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			_, err := s.ApplicationCommandCreate(appID, guildID, command)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func getChat(names ...string) {
 	for _, name := range names {
 		for _, videoId := range db.Distinct("livestream", tools.UserData[name]["Youtube"]["Id"]) {
-			if videoId == "G22WPiRfTws" {
-				continue
-			}
-
 			go LiveChat(videoId, tools.UserData[name]["Youtube"]["DiscordChannelId"])
 		}
 	}
