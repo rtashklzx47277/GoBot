@@ -92,7 +92,7 @@ func GetPlan(userId string) ([]Plan, error) {
 	for _, item := range data.Get("body").JsonArray() {
 		plan := Plan{
 			Id:          item.Get("id").String(),
-			UserId:      userId,
+			UserId:      item.Get("user").Get("userId").String(),
 			Title:       item.Get("title").String(),
 			Fee:         item.Get("fee").Int(),
 			Description: item.Get("description").String(),
@@ -117,7 +117,7 @@ func GetPost(userId string) ([]Post, error) {
 	for _, item := range data.Get("body").JsonArray() {
 		post := Post{
 			Id:            item.Get("id").String(),
-			UserId:        userId,
+			UserId:        item.Get("user").Get("userId").String(),
 			Title:         item.Get("title").String(),
 			Fee:           item.Get("feeRequired").Int(),
 			Image:         item.Get("cover").Get("url").String(),

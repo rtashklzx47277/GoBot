@@ -53,12 +53,11 @@ func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, erro
 		return nil, fmt.Errorf("error connecting to MySQL!\n%v", err)
 	}
 
-	err = db.Ping()
-	if err != nil {
-		return nil, fmt.Errorf("database has no response!\n%v", err)
-	}
-
 	return &MySQL{db}, nil
+}
+
+func (mySQL *MySQL) Ping() error {
+	return mySQL.db.Ping()
 }
 
 func (mySQL *MySQL) Exec(query string, values ...any) {

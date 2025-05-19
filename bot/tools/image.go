@@ -41,7 +41,7 @@ func ImageCheck(oldImagePath, newImageUrl string) (int, string, error) {
 		if err != nil {
 			return 0, "", err
 		}
-		fmt.Printf("Image loaded from file: %s (Cache Size: %d)\n", oldImagePath, imageCache.Len())
+
 		imageCache.Add(oldImagePath, old)
 	}
 
@@ -159,7 +159,6 @@ func ImageDownload(imageUrl string, filePath ...string) error {
 		return fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	fmt.Printf("Image loaded from URL: %s (Cache Size: %d)\n", imageUrl, imageCache.Len())
 	imageCache.Add(imagePath, img)
 
 	return nil

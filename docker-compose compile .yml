@@ -21,20 +21,30 @@ services:
       start_period: 30s
       start_interval: 3s
   gobot:
-    image: golang:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: gobot
     working_dir: /bot
     env_file:
       - .env
     volumes:
-      - ./bot:/bot
-    command: go run .
+      - ./logs:/bot/logs
+      - ./media:/bot/media
+    command: ./gobot
     networks:
       - bot-net
     depends_on:
       mydb:
         condition: service_healthy
     restart: always
+    healthcheck:
+      test: ["CMD", "./gobot", "-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+      start_interval: 5s
 networks:
   bot-net:
     driver: bridge

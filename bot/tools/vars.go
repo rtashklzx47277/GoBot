@@ -205,14 +205,14 @@ var (
 			"Twitter": {
 				"Id":               "1857716233757667335",
 				"Username":         "Yuukisakunainfo",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "1373618972661907606",
 			},
 		},
 		"SakunaRadio": {
 			"Twitter": {
 				"Id":               "1869731321217687552",
 				"Username":         "sakuna_twintail",
-				"DiscordChannelId": "872762880200687666",
+				"DiscordChannelId": "1373618972661907606",
 			},
 		},
 	}

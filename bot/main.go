@@ -1,7 +1,5 @@
 package main
 
-// history data
-
 import (
 	"GoBot/tools"
 	"GoBot/tools/discord"
@@ -13,8 +11,10 @@ import (
 	"GoBot/tools/twitter"
 	"GoBot/tools/youtube"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -270,49 +270,6 @@ var (
 			}
 
 			discord.SendResponse(s, i, fmt.Sprintf("Twitch Access Token: %s", token))
-		},
-	}
-	componentsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string){
-		"collab": func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string) {
-			defer func() {
-				if r := recover(); r != nil {
-					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
-					log.Println("handler panic:", r)
-				}
-			}()
-
-			if !db.Find("Video", "WHERE Id = ?", videoId) {
-				video, err := youtube.GetVideo(videoId)
-				if err != nil {
-					panic(err)
-				}
-
-				err = tools.ImageDownload(video.Thumbnail, user, "Youtube", "Collab", video.Id)
-				if err != nil {
-					panic(err)
-				}
-
-				discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, tools.UserData[user]["Youtube"]["DiscordChannelId"])
-				db.Insert("Video", video.Map())
-				db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
-				discord.SendResponse(s, i, "已新增連動影片！")
-			} else {
-				db.Insert("Collab", map[string]any{"VideoId": videoId, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
-				discord.SendResponse(s, i, "已新增連動資料！")
-			}
-		},
-		"no": func(s *discordgo.Session, i *discordgo.InteractionCreate, user, videoId string) {
-			defer func() {
-				if r := recover(); r != nil {
-					discord.SendResponse(s, i, "似乎發生了什麼錯誤...")
-					log.Println("handler panic:", r)
-				}
-			}()
-
-			err := s.ChannelMessageDelete(i.ChannelID, i.Interaction.Message.ID)
-			if err != nil {
-				panic(err)
-			}
 		},
 	}
 )
@@ -1914,16 +1871,28 @@ func FanboxNotify(name string) {
 }
 
 func initial() {
-	logFile, err := os.OpenFile("/bot/error.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile("/bot/logs/error.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
+		os.Exit(1)
 	}
-
 	log.SetOutput(logFile)
 
-	db, err = sql.ConnectToMySQL(os.Getenv("SQL_USERNAME"), os.Getenv("SQL_PASSWORD"), os.Getenv("SQL_HOST"), os.Getenv("SQL_PORT"), os.Getenv("SQL_DATABASE_NAME"))
+	db, err = sql.ConnectToMySQL(os.Getenv("MYSQL_USER"), os.Getenv("MYSQL_PASSWORD"), os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PORT"), os.Getenv("MYSQL_DATABASE"))
 	if err != nil {
 		log.Fatalf("Error connecting to MySQL: %v", err)
+	}
+
+	healthCheck := flag.Bool("health", false, "Run health check")
+	flag.Parse()
+
+	if *healthCheck {
+		if err := checkHealth(); err != nil {
+			log.Fatalf("Health check failed: %v", err)
+			os.Exit(1)
+		}
+
+		os.Exit(0)
 	}
 
 	s, err = discordgo.New("Bot " + os.Getenv("DISCORD_TOKEN"))
@@ -1931,20 +1900,14 @@ func initial() {
 		log.Fatalf("Invalid bot parameters: %v", err)
 	}
 
-	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.Type {
-		case discordgo.InteractionApplicationCommand:
-			if handler, ok := commandsHandlers[i.ApplicationCommandData().Name]; ok {
-				handler(s, i)
-			}
-		case discordgo.InteractionMessageComponent:
-			parts := strings.Split(i.MessageComponentData().CustomID, ":")
+	err = syncCommands(false, s)
+	if err != nil {
+		log.Fatalf("Failed to sync commands: %v", err)
+	}
 
-			if parts[0] == "collab" {
-				componentsHandlers[parts[0]](s, i, parts[1], parts[2])
-			} else {
-				componentsHandlers[parts[0]](s, i, "", "")
-			}
+	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if handler, ok := commandsHandlers[i.ApplicationCommandData().Name]; ok {
+			handler(s, i)
 		}
 	})
 
@@ -1952,16 +1915,25 @@ func initial() {
 		fmt.Println("Bot is running...")
 	})
 
-	err = syncCommands(false, s)
-	if err != nil {
-		log.Fatalf("Failed to sync commands: %v", err)
-	}
-
 	err = s.Open()
 	if err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 	defer s.Close()
+}
+
+func checkHealth() error {
+	conn, err := net.DialTimeout("tcp", "8.8.8.8:53", 1*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to connect to external network (8.8.8.8:53) after retries: %v", err)
+	}
+	defer conn.Close()
+
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping DB after retries: %v", err)
+	}
+
+	return nil
 }
 
 func runGo(f func(string), names map[string]int) {

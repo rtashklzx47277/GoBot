@@ -1,10 +1,14 @@
 FROM golang:alpine AS builder
 WORKDIR /bot
-COPY ./bot .
+COPY bot/go.mod bot/go.sum ./
 RUN go mod download
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o gobot .
+COPY bot/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o gobot .
 
 FROM alpine:latest
 WORKDIR /bot
 COPY --from=builder /bot/gobot .
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown appuser:appgroup /bot
+USER appuser
 CMD ["./gobot"]
