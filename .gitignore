@@ -1,3 +1,5 @@
 .vscode
 .env
+backup/
 bot/media/change.jpg
+bot/userData.json

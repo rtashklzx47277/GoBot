@@ -44,7 +44,7 @@ var userMap = map[string]map[string]string{
 }
 
 type MySQL struct {
-	db *sql.DB
+	Database *sql.DB
 }
 
 func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, error) {
@@ -57,11 +57,11 @@ func ConnectToMySQL(username, password, host, port, dbName string) (*MySQL, erro
 }
 
 func (mySQL *MySQL) Ping() error {
-	return mySQL.db.Ping()
+	return mySQL.Database.Ping()
 }
 
 func (mySQL *MySQL) Exec(query string, values ...any) {
-	_, err := mySQL.db.Exec(query, values...)
+	_, err := mySQL.Database.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to exec query!\n%v", err))
 	}
@@ -79,7 +79,7 @@ func (mySQL *MySQL) Insert(table string, data map[string]any) {
 	}
 
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
-	_, err := mySQL.db.Exec(query, values...)
+	_, err := mySQL.Database.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to insert data!\n%v", err))
 	}
@@ -87,7 +87,7 @@ func (mySQL *MySQL) Insert(table string, data map[string]any) {
 
 func (mySQL *MySQL) Delete(table string, filter string, values ...any) {
 	query := fmt.Sprintf("DELETE FROM %s %s", table, filter)
-	_, err := mySQL.db.Exec(query, values...)
+	_, err := mySQL.Database.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to delete data!\n%v", err))
 	}
@@ -103,7 +103,7 @@ func (mySQL *MySQL) Update(table, Id string, colAndVal ...any) {
 	}
 
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE Id = \"%s\"", table, strings.Join(columns, ", "), Id)
-	_, err := mySQL.db.Exec(query, values...)
+	_, err := mySQL.Database.Exec(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to update data!\n%v", err))
 	}
@@ -113,7 +113,7 @@ func (mySQL *MySQL) Find(table, filter string, values ...any) bool {
 	var exist bool
 
 	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s %s LIMIT 1)", table, filter)
-	err := mySQL.db.QueryRow(query, values...).Scan(&exist)
+	err := mySQL.Database.QueryRow(query, values...).Scan(&exist)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

@@ -12,7 +12,7 @@ func (mySQL *MySQL) FindTwitterUser(userId string) twitter.User {
 	var username, name, description, location, link, latest, pinned sql.NullString
 
 	query := "SELECT * FROM TwitterUser WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &username, &name, &description, &location, &link, &latest, &pinned,
+	err := mySQL.Database.QueryRow(query, userId).Scan(&user.Id, &username, &name, &description, &location, &link, &latest, &pinned,
 		&user.Protected, &user.Verified, &user.FollowersCount, &user.FollowingCount, &user.LikeCount)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
@@ -43,7 +43,7 @@ func (mySQL *MySQL) FindLatestTweetId(userIds ...string) string {
 	}
 
 	query := fmt.Sprintf("SELECT MAX(CAST(Latest AS UNSIGNED)) FROM TwitterUser WHERE Username IN (%s)", strings.Join(placeholders, ", "))
-	err := mySQL.db.QueryRow(query, args...).Scan(&latestId)
+	err := mySQL.Database.QueryRow(query, args...).Scan(&latestId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -52,7 +52,7 @@ func (mySQL *MySQL) FindLatestTweetId(userIds ...string) string {
 }
 
 func (mySQL *MySQL) FindTwitterUserIds() []string {
-	rows, err := mySQL.db.Query("SELECT DISTINCT FollowId FROM TwitterFollowing")
+	rows, err := mySQL.Database.Query("SELECT DISTINCT FollowId FROM TwitterFollowing")
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

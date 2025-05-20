@@ -243,20 +243,20 @@ func GetVideos(videoIds []string) ([]Video, error) {
 	return videos, nil
 }
 
-func GetComments(target, Id string) ([]Comment, error) {
+func GetComments(target, channelId, videoId, commentId string) ([]Comment, error) {
 	var comments []Comment
-	var request, filter, pageToken string
+	var request, filter, id, pageToken string
 
 	if target == "channel" {
-		request, filter = "commentThreads", "allThreadsRelatedToChannelId"
+		request, filter, id = "commentThreads", "allThreadsRelatedToChannelId", channelId
 	} else if target == "video" {
-		request, filter = "commentThreads", "videoId"
+		request, filter, id = "commentThreads", "videoId", videoId
 	} else if target == "reply" {
-		request, filter = "comments", "parentId"
+		request, filter, id = "comments", "parentId", commentId
 	}
 
 	for {
-		path := fmt.Sprintf("%s?part=snippet&%s=%s&maxResults=100&textFormat=plainText&pageToken=%s", request, filter, Id, pageToken)
+		path := fmt.Sprintf("%s?part=snippet&%s=%s&maxResults=100&textFormat=plainText&pageToken=%s", request, filter, id, pageToken)
 		data, err := getData(path)
 		if err != nil {
 			return []Comment{}, err
@@ -288,7 +288,7 @@ func GetComments(target, Id string) ([]Comment, error) {
 			if !commentTime.InRange(1) {
 				pageToken = ""
 				break
-			} else if _, ok := tools.ChannelList[authorId]; ok {
+			} else if authorId == channelId {
 				var id string
 
 				if target == "channel" || target == "video" {
@@ -311,7 +311,7 @@ func GetComments(target, Id string) ([]Comment, error) {
 					comment.Video.Id = snippet.Get("videoId").String()
 					comment.Video.Url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", comment.Video.Id)
 				} else if target == "reply" {
-					comment.ParentId = Id
+					comment.ParentId = commentId
 				}
 
 				comments = append(comments, comment)

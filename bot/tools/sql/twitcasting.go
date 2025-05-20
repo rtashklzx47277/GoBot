@@ -11,7 +11,7 @@ func (mySQL *MySQL) FindTwitcastingUser(userId string) twitcasting.User {
 	var screenId, title, description sql.NullString
 
 	query := "SELECT * FROM TwitcastingUser WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &screenId, &title, &description, &user.Live)
+	err := mySQL.Database.QueryRow(query, userId).Scan(&user.Id, &screenId, &title, &description, &user.Live)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

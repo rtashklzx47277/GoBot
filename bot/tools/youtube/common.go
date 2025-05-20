@@ -403,3 +403,16 @@ func GroupPerk(old, new []Perk) []ZipPerk {
 
 	return result
 }
+
+func GetCache(cache map[string]*Channel, userDataMap map[string]tools.Data, names ...string) (map[string]*Channel, error) {
+	for _, name := range names {
+		channelId := userDataMap[name].Youtube.Id
+		channel, err := GetChannel(channelId)
+		if err != nil {
+			return map[string]*Channel{}, err
+		}
+		cache[channelId] = &Channel{Title: channel.Title, Url: channel.Url, Icon: channel.Icon}
+	}
+
+	return cache, nil
+}

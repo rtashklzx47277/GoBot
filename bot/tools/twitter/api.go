@@ -124,7 +124,7 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 			LikeCount:      item.Get("public_metrics").Get("like_count").Int(),
 		}
 
-		users[user.Username] = user
+		users[user.Id] = user
 	}
 
 	return users, nil
@@ -282,7 +282,7 @@ func GetTimelines(sinceId string, usernames ...string) (map[string][]Post, error
 
 	for _, item := range data.Get("data").JsonArray() {
 		post := getPostStruct(item)
-		posts[tools.GetUsername(post.AuthorId)] = append(posts[tools.GetUsername(post.AuthorId)], post)
+		posts[post.AuthorId] = append(posts[post.AuthorId], post)
 	}
 
 	return posts, nil

@@ -26,6 +26,14 @@ type Message struct {
 
 var ErrorNoChat = fmt.Errorf("chat is not yet available")
 
+func ChatNotify(names ...string) {
+	for _, name := range names {
+		for _, videoId := range db.Distinct("livestream", userDataMap[name].Youtube.Id) {
+			go LiveChat(videoId, userDataMap[name].Youtube.DiscordChannelId)
+		}
+	}
+}
+
 func LiveChat(videoId, discordChannelId string) {
 	var apiKey, continuation string
 	var err error
@@ -378,12 +386,6 @@ func getMessage(renderer *tools.Json) string {
 func check(channelId, badge string) bool {
 	if strings.Contains(badge, "Owner") || strings.Contains(badge, "Moderator") {
 		return true
-	}
-
-	for key := range tools.ChannelList {
-		if key == channelId {
-			return true
-		}
 	}
 
 	return false

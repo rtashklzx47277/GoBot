@@ -3,7 +3,7 @@
 .gitattributes
 .vscode
 .env
-backup
-script
+backup/
+script/
 docker-compose.yml
 Dockerfile

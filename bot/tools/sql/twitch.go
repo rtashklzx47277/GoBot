@@ -12,7 +12,7 @@ func (mySQL *MySQL) FindTwitchUser(userId string) twitch.User {
 	var followTime, slowTime sql.NullInt64
 
 	query := "SELECT * FROM TwitchUser WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &loginId, &title, &description, &channelTitle, &color,
+	err := mySQL.Database.QueryRow(query, userId).Scan(&user.Id, &loginId, &title, &description, &channelTitle, &color,
 		&user.EmoteMode, &user.SubscriberMode, &user.UniqueMode,
 		&user.FollowMode, &followTime, &user.SlowMode, &slowTime, &user.Live)
 	if err != nil {
@@ -36,7 +36,7 @@ func (mySQL *MySQL) FindTwitchUser(userId string) twitch.User {
 
 func (mySQL *MySQL) FindTwitchSchedules(userId string) []twitch.Schedule {
 	query := "SELECT ScheduledTime FROM TwitchSchedule WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -64,7 +64,7 @@ func (mySQL *MySQL) FindTwitchSchedules(userId string) []twitch.Schedule {
 
 func (mySQL *MySQL) FindTwitchBadges(userId string) []twitch.Badge {
 	query := "SELECT Id, SetId, Title, Description FROM TwitchBadge WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -95,7 +95,7 @@ func (mySQL *MySQL) FindTwitchBadges(userId string) []twitch.Badge {
 
 func (mySQL *MySQL) FindTwitchStamps(userId string) []twitch.Stamp {
 	query := "SELECT Id, Title, Tier, Type, Format FROM TwitchStamp WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

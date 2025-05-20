@@ -12,7 +12,7 @@ func (mySQL *MySQL) FindChannel(channelId string) youtube.Channel {
 	var subscriberCount, viewCount sql.NullInt64
 
 	query := "SELECT Id, CustomId, Title, Description, SubscriberCount, ViewCount FROM Channel WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, channelId).Scan(&channel.Id, &customId, &title, &description, &subscriberCount, &viewCount)
+	err := mySQL.Database.QueryRow(query, channelId).Scan(&channel.Id, &customId, &title, &description, &subscriberCount, &viewCount)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -32,7 +32,7 @@ func (mySQL *MySQL) FindChannel(channelId string) youtube.Channel {
 
 func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 	query := "SELECT Id, Title, Description, Length, ViewCount, LiveStatus, PublishedTime, ScheduledTime, StartTime, EndTime, Comment, Private, Music FROM Video WHERE ChannelId = ?"
-	rows, err := mySQL.db.Query(query, channelId)
+	rows, err := mySQL.Database.Query(query, channelId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -72,7 +72,7 @@ func (mySQL *MySQL) FindVideos(channelId string) []youtube.Video {
 func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 	query := "SELECT DISTINCT Id, Video.ChannelId, Title, LiveStatus, ScheduledTime FROM Video LEFT JOIN Collab ON Video.Id = Collab.VideoId " +
 		"WHERE (Video.ChannelId = ? OR Collab.ChannelId = ?) AND LiveStatus <> ? AND Private = ?"
-	rows, err := mySQL.db.Query(query, channelId, channelId, 0, 0)
+	rows, err := mySQL.Database.Query(query, channelId, channelId, 0, 0)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -114,7 +114,7 @@ func (mySQL *MySQL) FindLivestreams(channelId string) []youtube.Video {
 
 func (mySQL *MySQL) FindPlaylists(channelId string) []youtube.Playlist {
 	query := "SELECT Id, Title, Description FROM Playlist WHERE channelId = ?"
-	rows, err := mySQL.db.Query(query, channelId)
+	rows, err := mySQL.Database.Query(query, channelId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -145,7 +145,7 @@ func (mySQL *MySQL) FindPlaylists(channelId string) []youtube.Playlist {
 
 func (mySQL *MySQL) FindPlaylistItems(playlistId string) []youtube.Video {
 	query := "SELECT Id, ChannelId, Title FROM Video RIGHT JOIN PlaylistItem ON PlaylistItem.VideoId = Video.Id WHERE PlaylistItem.PlaylistId = ?"
-	rows, err := mySQL.db.Query(query, playlistId)
+	rows, err := mySQL.Database.Query(query, playlistId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -180,7 +180,7 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 		"LEFT JOIN Video v ON v.Id = c.VideoId " +
 		"LEFT JOIN Channel c2 ON c2.Id = v.ChannelId " +
 		"WHERE c2.Id = ?"
-	rows, err := mySQL.db.Query(query, channelId)
+	rows, err := mySQL.Database.Query(query, channelId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -216,7 +216,7 @@ func (mySQL *MySQL) FindComments(channelId string) []youtube.Comment {
 
 func (mySQL *MySQL) FindPerks(channelId string) []youtube.Perk {
 	query := "SELECT Title, Description FROM Perk WHERE channelId = ?"
-	rows, err := mySQL.db.Query(query, channelId)
+	rows, err := mySQL.Database.Query(query, channelId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -284,7 +284,7 @@ func (mySQL *MySQL) Distinct(target, id string) []string {
 		values = append(values, id)
 	}
 
-	rows, err := mySQL.db.Query(query, values...)
+	rows, err := mySQL.Database.Query(query, values...)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -311,7 +311,7 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 
 		query := "SELECT c2.VideoId FROM Comment c1 LEFT JOIN Comment c2 ON c1.ParentId = c2.Id WHERE c1.Id = ?"
 
-		err := mySQL.db.QueryRow(query, comment.Id).Scan(&videoId)
+		err := mySQL.Database.QueryRow(query, comment.Id).Scan(&videoId)
 		if err != nil {
 			fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 		}
@@ -324,7 +324,7 @@ func (mySQL *MySQL) CompelteComment(comment youtube.Comment) youtube.Comment {
 
 	query := "SELECT Channel.Title, Video.Title FROM Comment LEFT JOIN Video ON Comment.VideoId = Video.Id LEFT JOIN Channel ON Comment.ChannelId = Channel.Id WHERE Comment.Id = ?"
 
-	err := mySQL.db.QueryRow(query, comment.Id).Scan(&authorTitle, &videoTitle)
+	err := mySQL.Database.QueryRow(query, comment.Id).Scan(&authorTitle, &videoTitle)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -339,7 +339,7 @@ func (mySQL *MySQL) FindChannelTitle(channelId string) string {
 	var title sql.NullString
 
 	query := "SELECT Title FROM Channel WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, channelId).Scan(&title)
+	err := mySQL.Database.QueryRow(query, channelId).Scan(&title)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -351,7 +351,7 @@ func (mySQL *MySQL) FindVideoTitle(videoId string) string {
 	var title sql.NullString
 
 	query := "SELECT Title FROM Video WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, videoId).Scan(&title)
+	err := mySQL.Database.QueryRow(query, videoId).Scan(&title)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -363,7 +363,7 @@ func (mySQL *MySQL) CheckVideoStatus(videoId string) int {
 	var liveStatus sql.NullInt64
 
 	query := "SELECT LiveStatus FROM Video WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, videoId).Scan(&liveStatus)
+	err := mySQL.Database.QueryRow(query, videoId).Scan(&liveStatus)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -375,7 +375,7 @@ func (mySQL *MySQL) CheckVideoMember(videoId string) bool {
 	var member sql.NullBool
 
 	query := "SELECT Member FROM Video WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, videoId).Scan(&member)
+	err := mySQL.Database.QueryRow(query, videoId).Scan(&member)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

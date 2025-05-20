@@ -11,7 +11,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	var creatorId, name, description, category sql.NullString
 
 	query := "SELECT Id, CreatorId, Name, Description, Category FROM FanboxUser WHERE Id = ?"
-	err := mySQL.db.QueryRow(query, userId).Scan(&user.Id, &creatorId, &name, &description, &category)
+	err := mySQL.Database.QueryRow(query, userId).Scan(&user.Id, &creatorId, &name, &description, &category)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -26,7 +26,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	user.Url = fmt.Sprintf("https://www.pixiv.net/fanbox/creator/%s", user.Id)
 
 	query = "SELECT Link FROM FanboxLink WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -44,7 +44,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 	}
 
 	query = "SELECT Id, Type, Media FROM FanboxItem WHERE UserId = ?"
-	rows, err = mySQL.db.Query(query, userId)
+	rows, err = mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -70,7 +70,7 @@ func (mySQL *MySQL) FindFanboxUser(userId string) fanbox.User {
 
 func (mySQL *MySQL) FindFanboxPlans(userId string) []fanbox.Plan {
 	query := "SELECT Id, Title, Fee, Description FROM FanboxPlan WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}
@@ -102,7 +102,7 @@ func (mySQL *MySQL) FindFanboxPlans(userId string) []fanbox.Plan {
 
 func (mySQL *MySQL) FindFanboxPosts(userId string) []fanbox.Post {
 	query := "SELECT Id, UserId, Title, Fee, UpdatedTime, Deleted FROM FanboxPost WHERE UserId = ?"
-	rows, err := mySQL.db.Query(query, userId)
+	rows, err := mySQL.Database.Query(query, userId)
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to find data!\n%v", err))
 	}

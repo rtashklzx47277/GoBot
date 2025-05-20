@@ -14,7 +14,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -26,115 +25,13 @@ import (
 var (
 	db                 *sql.MySQL
 	s                  *discordgo.Session
-	collabIds          = []string{}
 	messageIdList      = []string{}
+	userDataMap        = map[string]tools.Data{}
 	channelCache       = map[string]*youtube.Channel{}
 	logChannelId       = os.Getenv("DISCORD_LOG_CHANNEL_ID")
 	testChannelId      = os.Getenv("DISCORD_TEST_CHANNEL_ID")
 	milestoneChannelId = os.Getenv("DISCORD_MILESTONE_CHANNEL_ID")
 
-	commands = []*discordgo.ApplicationCommand{
-		{
-			Name:        "collab",
-			Description: "New Collab Stream",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "collab-with",
-					Description: "Which User Is Collabing",
-					Required:    true,
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Sakuna",
-							Value: "Sakuna",
-						},
-						{
-							Name:  "Roa",
-							Value: "Roa",
-						},
-						{
-							Name:  "Both",
-							Value: "Both",
-						},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "video-id",
-					Description: "Youtube Video Id",
-					Required:    true,
-				},
-			},
-		},
-		{
-			Name:        "follow",
-			Description: "Follow User",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "follow-by",
-					Description: "Which User Is Following",
-					Required:    true,
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Sakuna",
-							Value: "Sakuna",
-						},
-						{
-							Name:  "Roa",
-							Value: "Roa",
-						},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "usernames",
-					Description: "Twitter User Screen Names (separate multiple usernames with commas)",
-					Required:    true,
-				},
-			},
-		},
-		{
-			Name:        "unfollow",
-			Description: "Unfollow User",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "unfollow-by",
-					Description: "Which User Is Unfollowing",
-					Required:    true,
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Sakuna",
-							Value: "Sakuna",
-						},
-						{
-							Name:  "Roa",
-							Value: "Roa",
-						},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "usernames",
-					Description: "Twitter User Screen Names (separate multiple usernames with commas)",
-					Required:    true,
-				},
-			},
-		},
-		{
-			Name:        "update-youtube-channels-data",
-			Description: "Update Youtube Channels Data",
-		},
-		{
-			Name:        "update-twitter-users-data",
-			Description: "Update Twitter Users Data",
-		},
-		{
-			Name:        "get-twitch-access-token",
-			Description: "Return Twitch Access Token",
-		},
-	}
 	commandsHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"collab": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			defer func() {
@@ -162,12 +59,12 @@ var (
 					panic(err)
 				}
 
-				discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, tools.UserData[user]["Youtube"]["DiscordChannelId"])
+				discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, userDataMap[user].Youtube.DiscordChannelId)
 				db.Insert("Video", video.Map())
-				db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": userDataMap[user].Youtube.Id})
 				discord.SendResponse(s, i, "已新增連動影片！")
 			} else {
-				db.Insert("Collab", map[string]any{"VideoId": videoId, "ChannelId": tools.UserData[user]["Youtube"]["Id"]})
+				db.Insert("Collab", map[string]any{"VideoId": videoId, "ChannelId": userDataMap[user].Youtube.Id})
 				discord.SendResponse(s, i, "已新增連動資料！")
 			}
 		},
@@ -189,7 +86,7 @@ var (
 
 			for _, username := range usernames {
 				if user, ok := users[username]; ok {
-					db.Insert("TwitterFollowing", map[string]any{"FollowedBy": tools.UserData[name]["Twitter"]["Id"], "FollowId": user.Id, "FollowUserName": user.Username, "FollowName": user.Name})
+					db.Insert("TwitterFollowing", map[string]any{"FollowedBy": userDataMap[name].Twitter.Id, "FollowId": user.Id, "FollowUserName": user.Username, "FollowName": user.Name})
 					s.ChannelMessageSend(testChannelId, fmt.Sprintf("已新增追隨資料！ (@%s)", username))
 				} else {
 					s.ChannelMessageSend(testChannelId, fmt.Sprintf("找不到用戶(@%s)資料", username))
@@ -210,7 +107,7 @@ var (
 			usernames := strings.Split(i.ApplicationCommandData().Options[1].StringValue(), ",")
 
 			for _, username := range usernames {
-				db.Exec("UPDATE ? SET isFollowing = ? WHERE FollowedBy = ? AND FollowUserName = ?", "TwitterFollowing", false, tools.UserData[name]["Twitter"]["Id"], username)
+				db.Exec("UPDATE ? SET isFollowing = ? WHERE FollowedBy = ? AND FollowUserName = ?", "TwitterFollowing", false, userDataMap[name].Twitter.Id, username)
 				s.ChannelMessageSend(testChannelId, fmt.Sprintf("已更新追隨資料！ (@%s)", username))
 			}
 
@@ -275,25 +172,27 @@ var (
 )
 
 func main() {
+	var err error
+
 	initial()
 
-	getChat("Sakuna", "Roa")
-
-	for _, name := range []string{"Sakuna", "Roa", "Aqua", "Shion"} {
-		channelId := tools.UserData[name]["Youtube"]["Id"]
-		channel, err := youtube.GetChannel(channelId)
-		if err != nil {
-			panic(err)
-		}
-		channelCache[channelId] = &youtube.Channel{Title: channel.Title, Url: channel.Url, Icon: channel.Icon}
+	userDataMap, err = tools.GetUserData()
+	if err != nil {
+		panic(err)
 	}
+
+	channelCache, err = youtube.GetCache(channelCache, userDataMap, "Sakuna", "Roa", "Aqua", "Shion")
+	if err != nil {
+		panic(err)
+	}
+
+	ChatNotify("Sakuna", "Roa")
 
 	runGo(YoutubeStreamNotify, map[string]int{"Sakuna": 30, "Roa": 60, "Aqua": 600, "Shion": 600})
 	runGo(YoutubeNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 3600, "Shion": 3600})
 	runGo(TwitterNotify, map[string]int{"Sakuna": 180, "Roa": 300, "Aqua": 1800, "Shion": 1800})
 	runGo(TweetNotify, map[string]int{"Sakuna": 120})
 	runGo(FanboxNotify, map[string]int{"Sakuna": 180, "Roa": 600})
-	runGo(Collab, map[string]int{"Shion": 600})
 	runGo2(TwitterNotifyAll, 600, "SakunaInfo", "SakunaRadio")
 	runGo2(TweetNotifyAll, 120, "Roa", "SakunaInfo", "SakunaRadio")
 
@@ -310,7 +209,7 @@ func YoutubeStreamNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Youtube Live")
 
-	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
+	channelId, discordChannelId := userDataMap[name].Youtube.Id, userDataMap[name].Youtube.DiscordChannelId
 	channel := channelCache[channelId]
 	baseEmbed := discord.BaseEmbed("Youtube", channel.Title, channel.Url, channel.Icon)
 
@@ -410,7 +309,7 @@ func YoutubeNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Youtube")
 
-	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
+	channelId, discordChannelId := userDataMap[name].Youtube.Id, userDataMap[name].Youtube.DiscordChannelId
 	channelData := db.FindChannel(channelId)
 	channel, err := youtube.GetChannel(channelId)
 	if err != nil {
@@ -697,7 +596,7 @@ func YoutubeNotify(name string) {
 
 	commentIds := db.Distinct("comment", channelId)
 	replyIds := db.Distinct("reply", channelId)
-	comments, err := youtube.GetComments("channel", channelId)
+	comments, err := youtube.GetComments("channel", channelId, "", "")
 	if err != nil {
 		panic(err)
 	}
@@ -710,7 +609,7 @@ func YoutubeNotify(name string) {
 			db.Insert("Comment", comment.Map())
 		}
 
-		replies, err := youtube.GetComments("reply", comment.Id)
+		replies, err := youtube.GetComments("reply", channelId, "", comment.Id)
 		if err != nil {
 			panic(err)
 		}
@@ -761,7 +660,7 @@ func YoutubeNotify(name string) {
 		}
 	}
 
-	if name == "Aqua" || name == "Roa" {
+	if name != "Sakuna" {
 		return
 	}
 
@@ -833,81 +732,6 @@ func YoutubeNotify(name string) {
 	}
 }
 
-func Collab(name string) {
-	defer func() {
-		if r := recover(); r != nil {
-			tools.DiscordNotify(s, "Collab", name)
-			tools.ErrorRecord(r)
-		}
-	}()
-
-	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Collab")
-
-	channelId, discordChannelId := tools.UserData[name]["Youtube"]["Id"], tools.UserData[name]["Youtube"]["DiscordChannelId"]
-
-	oldIds := db.Distinct("collab", channelId)
-	newIds, err := youtube.GetCollab(channelId)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, videoId := range newIds {
-		if tools.IsContain(oldIds, videoId) {
-			continue
-		}
-
-		video, err := youtube.GetVideo(videoId)
-		if err != nil {
-			panic(err)
-		}
-
-		err = tools.ImageDownload(video.Thumbnail, name, "Youtube", "Collab", video.Id)
-		if err != nil {
-			panic(err)
-		}
-
-		discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video).Send(s, discordChannelId)
-		db.Insert("Video", video.Map())
-		db.Insert("Collab", map[string]any{"VideoId": video.Id, "ChannelId": channelId})
-	}
-
-	oldIds = db.Distinct("collab", channelId)
-	videos, err := youtube.GetSchedule(name)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, video := range videos {
-		if tools.IsContain(collabIds, video.Id) || tools.IsContain(oldIds, video.Id) {
-			continue
-		}
-
-		s.ChannelMessageSendComplex(testChannelId, &discordgo.MessageSend{
-			Embed: (*discordgo.MessageEmbed)(discord.BaseEmbed("Youtube", "", "", "").NewNotify("collab", video)),
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.Button{
-							CustomID: fmt.Sprintf("collab:%s:%s", name, video.Id),
-							Label:    "Yes",
-							Emoji:    &discordgo.ComponentEmoji{Name: "✔️"},
-							Style:    discordgo.PrimaryButton,
-						},
-						discordgo.Button{
-							CustomID: "no",
-							Label:    "No",
-							Emoji:    &discordgo.ComponentEmoji{Name: "❌"},
-							Style:    discordgo.PrimaryButton,
-						},
-					},
-				},
-			},
-		})
-
-		collabIds = append(collabIds, video.Id)
-	}
-}
-
 func TwitterNotify(name string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -918,7 +742,7 @@ func TwitterNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitter")
 
-	userId, username, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["Username"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	userId, username, discordChannelId := userDataMap[name].Twitter.Id, userDataMap[name].Twitter.Username, userDataMap[name].Twitter.DiscordChannelId
 
 	userData := db.FindTwitterUser(userId)
 	user, err := twitter.GetUser(username)
@@ -940,9 +764,12 @@ func TwitterNotify(name string) {
 			panic(err)
 		}
 
-		baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
+		baseEmbed.New("", "", "用戶Username更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
 		db.Update("TwitterUser", userId, "Username", newUsername)
-		tools.UserData[name]["Twitter"]["Username"] = newUsername
+
+		data := userDataMap[name]
+		data.Twitter.Username = newUsername
+		userDataMap[name] = data
 
 		return
 	}
@@ -1037,7 +864,7 @@ func TwitterNotifyAll(names ...string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", "All", "Twitter")
 
-	usernames, usersData := tools.GetUsersData(names...)
+	usernames, userMaps := tools.GetUserMaps(userDataMap, names...)
 	users, err := twitter.GetUsers(usernames...)
 	if errors.Is(err, tools.ErrorTooManyRequests) {
 		fmt.Println("Out of tweet quota! Please wait... ")
@@ -1046,14 +873,12 @@ func TwitterNotifyAll(names ...string) {
 		panic([]any{"All", err})
 	}
 
-	for username, user := range users {
-		name, userId, discordChannelId := usersData[username]["Name"], usersData[username]["Id"], usersData[username]["DiscordChannelId"]
+	for userId, userMap := range userMaps {
+		name, discordChannelId := userMap["Name"], userMap["DiscordChannelId"]
 		userData := db.FindTwitterUser(userId)
 
-		baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
-
-		if userId != user.Id {
-			newUsername, err := twitter.GetUsername(userId)
+		if user, ok := users[userId]; !ok {
+			username, err := twitter.GetUsername(userId)
 			if errors.Is(err, tools.ErrorTooManyRequests) {
 				fmt.Println("Out of quota! Please wait... ")
 				return
@@ -1061,88 +886,92 @@ func TwitterNotifyAll(names ...string) {
 				panic([]any{name, err})
 			}
 
-			baseEmbed.New("", "", "用戶Id更新了！", "").Change(username, newUsername).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "Username", newUsername)
-			tools.UserData[name]["Twitter"]["Username"] = newUsername
+			baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
+			baseEmbed.New("", "", "用戶Username更新了！", "").Change(userData.Username, username).Send(s, discordChannelId)
+			db.Update("TwitterUser", userId, "Username", username)
 
-			continue
-		}
+			data := userDataMap[name]
+			data.Twitter.Username = username
+			userDataMap[name] = data
+		} else {
+			baseEmbed := discord.BaseEmbed("Twitter", user.Name, user.Url, user.Icon)
 
-		if userData.Name != user.Name {
-			baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Name, user.Name).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "Name", user.Name)
-		}
-
-		if userData.Description != user.Description {
-			baseEmbed.New("", "", "用戶介紹欄更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "Description", user.Description)
-		}
-
-		if userData.Location != user.Location {
-			baseEmbed.New("", "", "用戶位置更新了！", "").Change(userData.Location, user.Location).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "Location", user.Location)
-		}
-
-		if userData.Link != user.Link {
-			baseEmbed.New("", "", "用戶連結更新了！", "").Change(userData.Link, user.Link).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "Link", user.Link)
-		}
-
-		if userData.Pinned != user.Pinned {
-			var message string
-
-			if user.Pinned == "" {
-				message = fmt.Sprintf("取消釘選了推文！ https://x.com/x/status/%s", userData.Pinned)
-			} else {
-				message = fmt.Sprintf("釘選了新的推文！ https://x.com/x/status/%s", user.Pinned)
+			if userData.Name != user.Name {
+				baseEmbed.New("", "", "用戶名稱更新了！", "").Change(userData.Name, user.Name).Send(s, discordChannelId)
+				db.Update("TwitterUser", userId, "Name", user.Name)
 			}
 
-			s.ChannelMessageSend(discordChannelId, message)
-			db.Update("TwitterUser", userId, "Pinned", user.Pinned)
-		}
-
-		if userData.FollowersCount/10000 < user.FollowersCount/10000 {
-			baseEmbed.New("", "", fmt.Sprintf("Twitter追隨者數已突破%d萬人了！", user.FollowersCount/10000), user.Icon).Send(s, discordChannelId)
-			db.Update("TwitterUser", userId, "FollowersCount", user.FollowersCount)
-		}
-
-		if userData.FollowingCount != user.FollowingCount && user.FollowingCount != 0 {
-			var message string
-
-			if userData.FollowingCount < user.FollowingCount {
-				message = "追隨了新的用戶！"
-			} else {
-				message = "解除追隨了用戶！"
+			if userData.Description != user.Description {
+				baseEmbed.New("", "", "用戶介紹欄更新了！", "").Change(userData.Description, user.Description).Send(s, discordChannelId)
+				db.Update("TwitterUser", userId, "Description", user.Description)
 			}
 
-			s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s %s FollowingCount: %d -> %d", user.Name, message, userData.FollowingCount, user.FollowingCount))
-			db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
-		}
+			if userData.Location != user.Location {
+				baseEmbed.New("", "", "用戶位置更新了！", "").Change(userData.Location, user.Location).Send(s, discordChannelId)
+				db.Update("TwitterUser", userId, "Location", user.Location)
+			}
 
-		if userData.LikeCount < user.LikeCount {
-			db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
-		}
+			if userData.Link != user.Link {
+				baseEmbed.New("", "", "用戶連結更新了！", "").Change(userData.Link, user.Link).Send(s, discordChannelId)
+				db.Update("TwitterUser", userId, "Link", user.Link)
+			}
 
-		if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
-			err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
-			if err != nil {
+			if userData.Pinned != user.Pinned {
+				var message string
+
+				if user.Pinned == "" {
+					message = fmt.Sprintf("取消釘選了推文！ https://x.com/x/status/%s", userData.Pinned)
+				} else {
+					message = fmt.Sprintf("釘選了新的推文！ https://x.com/x/status/%s", user.Pinned)
+				}
+
+				s.ChannelMessageSend(discordChannelId, message)
+				db.Update("TwitterUser", userId, "Pinned", user.Pinned)
+			}
+
+			if userData.FollowersCount/10000 < user.FollowersCount/10000 {
+				baseEmbed.New("", "", fmt.Sprintf("Twitter追隨者數已突破%d萬人了！", user.FollowersCount/10000), user.Icon).Send(s, discordChannelId)
+				db.Update("TwitterUser", userId, "FollowersCount", user.FollowersCount)
+			}
+
+			if userData.FollowingCount != user.FollowingCount && user.FollowingCount != 0 {
+				var message string
+
+				if userData.FollowingCount < user.FollowingCount {
+					message = "追隨了新的用戶！"
+				} else {
+					message = "解除追隨了用戶！"
+				}
+
+				s.ChannelMessageSend(discordChannelId, fmt.Sprintf("%s %s FollowingCount: %d -> %d", user.Name, message, userData.FollowingCount, user.FollowingCount))
+				db.Update("TwitterUser", userId, "FollowingCount", user.FollowingCount)
+			}
+
+			if userData.LikeCount < user.LikeCount {
+				db.Update("TwitterUser", userId, "LikeCount", user.LikeCount)
+			}
+
+			if check, image, err := tools.ImageCheck(userData.Icon, user.Icon); err == nil && check == 0 {
+				err = tools.ImageDownload(user.Icon, name, "Twitter", "Icon")
+				if err != nil {
+					panic([]any{name, err})
+				}
+
+				baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
+			} else if err != nil {
 				panic([]any{name, err})
 			}
 
-			baseEmbed.New("", "", "用戶頭貼更新了！", image).Send(s, discordChannelId)
-		} else if err != nil {
-			panic([]any{name, err})
-		}
+			if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
+				err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
+				if err != nil {
+					panic([]any{name, err})
+				}
 
-		if check, image, err := tools.ImageCheck(userData.Banner, user.Banner); err == nil && check == 0 {
-			err = tools.ImageDownload(user.Banner, name, "Twitter", "Banner")
-			if err != nil {
+				baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
+			} else if err != nil {
 				panic([]any{name, err})
 			}
-
-			baseEmbed.New("", "", "用戶橫幅更新了！", image).Send(s, discordChannelId)
-		} else if err != nil {
-			panic([]any{name, err})
 		}
 	}
 }
@@ -1157,7 +986,7 @@ func TweetNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Tweet")
 
-	userId, discordChannelId := tools.UserData[name]["Twitter"]["Id"], tools.UserData[name]["Twitter"]["DiscordChannelId"]
+	userId, discordChannelId := userDataMap[name].Twitter.Id, userDataMap[name].Twitter.DiscordChannelId
 	user := db.FindTwitterUser(userId)
 
 	posts, err := twitter.GetTimeline(userId, user.Latest)
@@ -1218,7 +1047,7 @@ func TweetNotifyAll(names ...string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", "All", "Tweet")
 
-	usernames, usersData := tools.GetUsersData(names...)
+	usernames, userMaps := tools.GetUserMaps(userDataMap, names...)
 	latestId := db.FindLatestTweetId(usernames...)
 	postsData, err := twitter.GetTimelines(latestId, usernames...)
 	if errors.Is(err, tools.ErrorTooManyRequests) {
@@ -1228,9 +1057,10 @@ func TweetNotifyAll(names ...string) {
 		panic([]any{"All", err})
 	}
 
-	for username, posts := range postsData {
-		name, userId, discordChannelId := usersData[username]["Name"], usersData[username]["Id"], usersData[username]["DiscordChannelId"]
+	for userId, userMap := range userMaps {
+		name, discordChannelId := userMap["Name"], userMap["DiscordChannelId"]
 		user := db.FindTwitterUser(userId)
+		posts := postsData[userId]
 
 		for i := len(posts) - 1; i >= 0; i-- {
 			post := posts[i]
@@ -1282,7 +1112,7 @@ func TwitchStreamNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitch Live")
 
-	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
+	userId, discordChannelId := userDataMap[name].Twitch.Id, userDataMap[name].Twitch.DiscordChannelId
 
 	userData := db.FindTwitchUser(userId)
 	user, err := twitch.GetUser(userId)
@@ -1316,7 +1146,7 @@ func TwitchNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitch")
 
-	userId, discordChannelId := tools.UserData[name]["Twitch"]["Id"], tools.UserData[name]["Twitch"]["DiscordChannelId"]
+	userId, discordChannelId := userDataMap[name].Twitch.Id, userDataMap[name].Twitch.DiscordChannelId
 
 	userData := db.FindTwitchUser(userId)
 	user, err := twitch.GetUser(userId)
@@ -1518,7 +1348,7 @@ func TwitcastingStreamNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitcasting Live")
 
-	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
+	userId, discordChannelId := userDataMap[name].Twitcasting.Id, userDataMap[name].Twitcasting.DiscordChannelId
 	user := db.FindTwitcastingUser(userId)
 
 	live, title, err := twitcasting.GetStream(userId)
@@ -1544,7 +1374,7 @@ func TwitcastingNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Twitcasting")
 
-	userId, discordChannelId := tools.UserData[name]["Twitcasting"]["Id"], tools.UserData[name]["Twitcasting"]["DiscordChannelId"]
+	userId, discordChannelId := userDataMap[name].Twitcasting.Id, userDataMap[name].Twitcasting.DiscordChannelId
 
 	userData := db.FindTwitcastingUser(userId)
 	user, err := twitcasting.GetUser(userId)
@@ -1586,7 +1416,7 @@ func TiktokNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Tiktok")
 
-	userUniqueId, discordChannelId := tools.UserData[name]["Tiktok"]["Id"], testChannelId //tools.UserData[name]["Tiktok"]["DiscordChannelId"]
+	userUniqueId, discordChannelId := userDataMap[name].Tiktok.Id, userDataMap[name].Tiktok.DiscordChannelId
 
 	user, err := tiktok.GetUser(userUniqueId)
 	if errors.Is(err, tiktok.ErrorNoUserData) {
@@ -1652,7 +1482,7 @@ func FanboxNotify(name string) {
 
 	defer fmt.Printf("%-15s %-20s notification end!\n", name, "Fanbox")
 
-	userId, creatorId, discordChannelId := tools.UserData[name]["Fanbox"]["Id"], tools.UserData[name]["Fanbox"]["CreatorId"], tools.UserData[name]["Fanbox"]["DiscordChannelId"]
+	userId, creatorId, discordChannelId := userDataMap[name].Fanbox.Id, userDataMap[name].Fanbox.CreatorId, userDataMap[name].Fanbox.DiscordChannelId
 
 	userData := db.FindFanboxUser(userId)
 	user, err := fanbox.GetUser(creatorId)
@@ -1887,7 +1717,7 @@ func initial() {
 	flag.Parse()
 
 	if *healthCheck {
-		if err := checkHealth(); err != nil {
+		if err := tools.CheckHealth(db.Database); err != nil {
 			log.Fatalf("Health check failed: %v", err)
 			os.Exit(1)
 		}
@@ -1900,7 +1730,7 @@ func initial() {
 		log.Fatalf("Invalid bot parameters: %v", err)
 	}
 
-	err = syncCommands(false, s)
+	err = tools.AddCommands(s, false)
 	if err != nil {
 		log.Fatalf("Failed to sync commands: %v", err)
 	}
@@ -1920,20 +1750,6 @@ func initial() {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 	defer s.Close()
-}
-
-func checkHealth() error {
-	conn, err := net.DialTimeout("tcp", "8.8.8.8:53", 1*time.Second)
-	if err != nil {
-		return fmt.Errorf("failed to connect to external network (8.8.8.8:53) after retries: %v", err)
-	}
-	defer conn.Close()
-
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping DB after retries: %v", err)
-	}
-
-	return nil
 }
 
 func runGo(f func(string), names map[string]int) {
@@ -1967,48 +1783,4 @@ func runGo2(f func(...string), interval int, names ...string) {
 			f(names...)
 		}
 	}()
-}
-
-func syncCommands(check bool, s *discordgo.Session) error {
-	if !check {
-		return nil
-	}
-
-	appID, guildID := os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID")
-
-	registeredCommands, err := s.ApplicationCommands(appID, guildID)
-	if err != nil {
-		return err
-	}
-
-	registeredMap := make(map[string]*discordgo.ApplicationCommand)
-	for _, command := range registeredCommands {
-		registeredMap[command.Name] = command
-	}
-
-	for _, command := range commands {
-		if existingCmd, exists := registeredMap[command.Name]; exists {
-			if existingCmd.Description != command.Description {
-				_, err := s.ApplicationCommandEdit(appID, guildID, existingCmd.ID, command)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			_, err := s.ApplicationCommandCreate(appID, guildID, command)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func getChat(names ...string) {
-	for _, name := range names {
-		for _, videoId := range db.Distinct("livestream", tools.UserData[name]["Youtube"]["Id"]) {
-			go LiveChat(videoId, tools.UserData[name]["Youtube"]["DiscordChannelId"])
-		}
-	}
 }
