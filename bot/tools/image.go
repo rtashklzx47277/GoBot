@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -9,19 +10,16 @@ import (
 	"image/jpeg"
 	"io"
 	"log"
-	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/cloudinary/cloudinary-go"
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	lru "github.com/hashicorp/golang-lru"
 )
 
-var (
-	imageCache *lru.Cache
-	imgurToken = os.Getenv("IMGUR_TOKEN")
-	albumId    = os.Getenv("IMGUR_ALBUM")
-)
+var imageCache *lru.Cache
 
 func init() {
 	var err error
@@ -75,51 +73,20 @@ func ImageUpload(imagePath string) (string, error) {
 		return "", nil
 	}
 
-	pic, err := os.ReadFile(imagePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file!\n%w", err)
-	}
+	cld, _ := cloudinary.New()
+	cld.Config.URL.Secure = true
+	ctx := context.Background()
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("image", imagePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create form file!\n%w", err)
-	}
-
-	_, err = part.Write(pic)
-	if err != nil {
-		return "", fmt.Errorf("failed to write image data to form file!\n%w", err)
-	}
-
-	err = writer.WriteField("type", "file")
-	if err != nil {
-		return "", fmt.Errorf("failed to write field 'type'!\n%w", err)
-	}
-
-	err = writer.WriteField("album", albumId)
-	if err != nil {
-		return "", fmt.Errorf("failed to write field 'album'!\n%w", err)
-	}
-
-	err = writer.Close()
+	resp, err := cld.Upload.Upload(ctx, imagePath, uploader.UploadParams{})
 	if err != nil {
 		return "", err
 	}
 
-	reader, err := Post("https://api.imgur.com/3/image", body).
-		AddHeader("Authorization", fmt.Sprintf("Bearer %s", imgurToken)).
-		AddHeader("Content-Type", writer.FormDataContentType()).Do()
-	if err != nil {
-		return "", err
+	if resp.SecureURL == "" {
+		return "", fmt.Errorf("failed to upload file!\n%s", resp.Error.Message)
 	}
 
-	data, err := ToJson(reader)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("https://imgur.com/%s.png", data.Get("data").Get("id").String()), nil
+	return resp.SecureURL, nil
 }
 
 func ImageDownload(imageUrl string, filePath ...string) error {

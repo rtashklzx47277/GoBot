@@ -172,9 +172,9 @@ var (
 )
 
 func main() {
-	var err error
-
 	initial()
+
+	var err error
 
 	userDataMap, err = tools.GetUserData()
 	if err != nil {
