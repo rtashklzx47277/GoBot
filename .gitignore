@@ -4,3 +4,4 @@ backup/
 bot/logs/
 bot/media/
 bot/userData.json
+bot/userMap.json

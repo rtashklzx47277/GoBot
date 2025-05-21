@@ -3,44 +3,28 @@ package sql
 import (
 	"GoBot/tools"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var userMap = map[string]map[string]string{
-	"Youtube": {
-		"UCrV1Hf5r8P148idjoSfrGEQ": "Sakuna",
-		"UCLIpj4TmXviSTNE_U5WG_Ug": "Roa",
-		"UC1opHUrw8rvnsadT-iGp7Cg": "Aqua",
-		"UCXTpFs_3PqI41qX2d9tL2Rw": "Shion",
-	},
-	"Twitter": {
-		"1512311952114028548": "Sakuna",
-		"1850834672483459072": "Roa",
-		"1024528894940987392": "Aqua",
-		"1024533638879166464": "Shion",
-		"1857716233757667335": "SakunaInfo",
-		"1869731321217687552": "SakunaRadio",
-	},
-	"Fanbox": {
-		"80355000": "Sakuna",
-		"69014608": "Roa",
-	},
-	"Twitch": {
-		"738746247": "Aqua",
-		"773041510": "Shion",
-	},
-	"Twitcasting": {
-		"1024528894940987392": "Aqua",
-		"1024533638879166464": "Shion",
-	},
-	"Tiktok": {
-		"minatoaqua_hololive":    "Aqua",
-		"murasakishion_hololive": "Shion",
-	},
+var userMap map[string]map[string]string
+
+func init() {
+	data, err := os.ReadFile("/bot/userMap.json")
+	if err != nil {
+		log.Fatalf("Failed to read userMap in sql package: %v", err)
+	}
+
+	err = json.Unmarshal(data, &userMap)
+	if err != nil {
+		log.Fatalf("Failed to parse userMap in sql package: %v", err)
+	}
 }
 
 type MySQL struct {

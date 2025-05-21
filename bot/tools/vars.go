@@ -152,14 +152,14 @@ func GetUserData() (map[string]Data, error) {
 		return map[string]Data{}, err
 	}
 
-	var UserData map[string]Data
+	var userData map[string]Data
 
-	err = json.Unmarshal(data, &UserData)
+	err = json.Unmarshal(data, &userData)
 	if err != nil {
 		return map[string]Data{}, err
 	}
 
-	return UserData, nil
+	return userData, nil
 }
 
 func GetUserMaps(userData map[string]Data, names ...string) ([]string, map[string]map[string]string) {
